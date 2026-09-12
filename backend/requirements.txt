@@ -13,3 +13,4 @@ joblib
 pymongo
 dnspython
 openai
+google-genai

@@ -6,6 +6,7 @@ from app.ai.summary import generate_executive_summary
 from app.ai.nlp_filter import extract_nlp_filters
 from app.ai.forecast import generate_forecast
 from app.ai.risk import calculate_risk_score
+from app.services.llm_client import get_last_provider
 from pydantic import BaseModel
 
 router = APIRouter()
@@ -111,13 +112,24 @@ def chat_with_data(run_id: str, req: ChatRequest, db=Depends(get_db)):
         }
 
         answer = get_chat_response(run_id, user_question, context)
-        return {"answer": answer, "response": answer}
+        provider = get_last_provider()
+        return {
+            "answer": answer,
+            "response": answer,
+            "served_by": provider,
+            "provider_status": provider,
+        }
     except HTTPException:
         raise
     except Exception as e:
         # Graceful fallback, never return 500 error
         fallback_msg = "I've analyzed your data: Top emission drivers are concentrated in Tier 3 freight. Reviewing anomalies and executing supplier recommendations offers immediate reduction pathways."
-        return {"answer": fallback_msg, "response": fallback_msg}
+        return {
+            "answer": fallback_msg,
+            "response": fallback_msg,
+            "served_by": "fallback",
+            "provider_status": "fallback",
+        }
 
 
 @router.get("/api/summary/{run_id}")
@@ -138,6 +150,8 @@ def get_summary(run_id: str, db=Depends(get_db)):
                 "actions": run["actions"],
                 "executive_summary": run["summary"],
                 "recommended_actions": run.get("recommended_actions") or "\n".join(run["actions"]),
+                "served_by": run.get("served_by") or "cached",
+                "provider_status": run.get("provider_status") or "cached",
             }
         elif run.get("executive_summary"):
             actions = [
@@ -154,6 +168,8 @@ def get_summary(run_id: str, db=Depends(get_db)):
                 "actions": actions,
                 "executive_summary": run["executive_summary"],
                 "recommended_actions": run.get("recommended_actions"),
+                "served_by": run.get("served_by") or "cached",
+                "provider_status": run.get("provider_status") or "cached",
             }
 
         # Gather context for LLM
@@ -196,6 +212,9 @@ def get_summary(run_id: str, db=Depends(get_db)):
         }
 
         summary_data = generate_executive_summary(run_context)
+        provider = get_last_provider()
+        summary_data["served_by"] = provider
+        summary_data["provider_status"] = provider
 
         # Cache back in MongoDB runs document
         db.runs.update_one(
@@ -206,6 +225,8 @@ def get_summary(run_id: str, db=Depends(get_db)):
                     "actions": summary_data["actions"],
                     "executive_summary": summary_data["executive_summary"],
                     "recommended_actions": summary_data["recommended_actions"],
+                    "served_by": provider,
+                    "provider_status": provider,
                 }
             },
         )
@@ -232,6 +253,8 @@ def get_summary(run_id: str, db=Depends(get_db)):
             "actions": fallback_actions,
             "executive_summary": fallback_summary,
             "recommended_actions": "\n".join(fallback_actions),
+            "served_by": "fallback",
+            "provider_status": "fallback",
         }
 
 
