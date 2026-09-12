@@ -1854,6 +1854,66 @@ h3 { font-size: 1.25rem; }
   background-clip: text;
 }
 
+/* Tailwind white utilities are used throughout the dark-first UI. Remap them
+   in light mode so headings, labels, borders, and controls keep readable contrast. */
+[data-theme="light"] .main-content [class~="text-white"],
+[data-theme="light"] .main-content [class~="text-white/90"],
+[data-theme="light"] .main-content [class~="text-white/80"],
+[data-theme="light"] .main-content [class~="text-white/70"],
+[data-theme="light"] .main-content [class~="text-white/60"],
+[data-theme="light"] .main-content [class~="text-white/50"],
+[data-theme="light"] .main-content [class~="text-white/40"],
+[data-theme="light"] .main-content [class~="text-white/30"] {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="light"] .main-content [class~="text-white/90"],
+[data-theme="light"] .main-content [class~="text-white/80"] {
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="light"] .main-content [class~="text-white/70"],
+[data-theme="light"] .main-content [class~="text-white/60"],
+[data-theme="light"] .main-content [class~="text-white/50"] {
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="light"] .main-content [class~="text-white/40"],
+[data-theme="light"] .main-content [class~="text-white/30"] {
+  color: var(--text-tertiary) !important;
+}
+
+[data-theme="light"] .main-content [class~="bg-white/5"],
+[data-theme="light"] .main-content [class~="bg-white/[0.03]"],
+[data-theme="light"] .main-content [class~="bg-white/[0.04]"],
+[data-theme="light"] .main-content [class~="bg-white/[0.05]"],
+[data-theme="light"] .main-content [class~="bg-white/[0.06]"],
+[data-theme="light"] .main-content [class~="bg-white/[0.08]"] {
+  background-color: rgba(0, 0, 0, 0.035) !important;
+}
+
+[data-theme="light"] .main-content [class~="border-white/5"],
+[data-theme="light"] .main-content [class~="border-white/10"],
+[data-theme="light"] .main-content [class~="border-white/15"],
+[data-theme="light"] .main-content [class~="border-white/20"] {
+  border-color: rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Keep intentionally dark utility surfaces readable in light mode. */
+[data-theme="light"] .main-content .bg-slate-900\/50,
+[data-theme="light"] .main-content .bg-black\/20,
+[data-theme="light"] .main-content .bg-black\/40,
+[data-theme="light"] .main-content .bg-\[\#0A0E14\]\/90 {
+  color: rgba(255, 255, 255, 0.95) !important;
+}
+
+[data-theme="light"] .main-content .bg-slate-900\/50 [class*="text-white"],
+[data-theme="light"] .main-content .bg-black\/20 [class*="text-white"],
+[data-theme="light"] .main-content .bg-black\/40 [class*="text-white"],
+[data-theme="light"] .main-content .bg-\[\#0A0E14\]\/90 [class*="text-white"] {
+  color: rgba(255, 255, 255, 0.95) !important;
+}
+
 /* ========== THEME TOGGLE ========== */
 .theme-toggle {
   background: none;
