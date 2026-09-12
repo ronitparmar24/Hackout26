@@ -42,6 +42,7 @@ const navGroups: NavGroup[] = [
     items: [
       { href: "/supply-chain", label: "Supply Chain Map", icon: Globe, badge: "Geo" },
       { href: "/simulator", label: "What-If Simulator", icon: Sliders, badge: "AI" },
+      { href: "/trading", label: "Carbon Trading Desk", icon: Globe, badge: "Live" },
     ],
   },
   {
