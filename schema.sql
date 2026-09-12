@@ -33,8 +33,8 @@ create table suppliers (
   material_emissions numeric,
   total_emissions numeric,
   is_anomaly boolean not null default false,
-  cluster_label int,
   risk_score numeric,
+  risk_reason text,
   risk_justification text,
   anomaly_reason text
 );

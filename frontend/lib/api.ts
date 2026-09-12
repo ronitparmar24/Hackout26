@@ -28,6 +28,7 @@ export interface Supplier {
   is_anomaly: boolean;
   cluster_label: number;
   risk_score?: number;
+  risk_reason?: string;
   risk_justification?: string;
   anomaly_reason?: string;
 }
@@ -101,7 +102,7 @@ export function getExportPDFUrl(runId: string): string {
 }
 
 export async function chatWithData(runId: string, message: string) {
-  const { data } = await api.post(`/api/chat/${runId}`, { message });
+  const { data } = await api.post(`/api/chat/${runId}`, { question: message, message });
   return data;
 }
 

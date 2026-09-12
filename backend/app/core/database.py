@@ -46,6 +46,32 @@ def init_db():
     # Auto-migrate SQLite data if MongoDB is empty
     migrate_from_sqlite_if_needed()
 
+    # Backfill risk_score and risk_reason on suppliers
+    migrate_supplier_risk_fields()
+
+
+def migrate_supplier_risk_fields():
+    """Ensure all existing suppliers have risk_score and risk_reason populated."""
+    from app.ai.risk import calculate_risk_score
+    suppliers_needing_risk = list(db.suppliers.find({"risk_reason": {"$exists": False}}))
+    if not suppliers_needing_risk:
+        return
+    print(f"[MongoDB Migration] Backfilling risk_score and risk_reason for {len(suppliers_needing_risk)} suppliers...")
+    for s in suppliers_needing_risk:
+        try:
+            risk = calculate_risk_score(s)
+            db.suppliers.update_one(
+                {"id": s["id"]},
+                {"$set": {
+                    "risk_score": risk["risk_score"],
+                    "risk_reason": risk["risk_reason"],
+                    "risk_justification": risk["risk_justification"]
+                }}
+            )
+        except Exception:
+            pass
+    print("[MongoDB Migration] Supplier risk fields migration complete!")
+
 
 def migrate_from_sqlite_if_needed():
     """Migrate legacy SQLite data if MongoDB runs collection is currently empty."""

@@ -12,6 +12,7 @@ from app.ml.regression import predict_missing
 from app.ml.anomaly import detect_anomalies
 from app.ml.clustering import cluster_suppliers
 from app.ml.recommendations import generate_recommendations
+from app.ai.risk import calculate_risk_score
 
 router = APIRouter()
 
@@ -123,9 +124,24 @@ def upload_csv(file: UploadFile = File(...), db=Depends(get_db)):
     if suppliers:
         anomalies = detect_anomalies(suppliers)
         clusters = cluster_suppliers(suppliers)
+        max_em = max([float(s.get("total_emissions", 0)) for s in suppliers]) if suppliers else 1.0
+
         for i, sup in enumerate(suppliers):
             sup["is_anomaly"] = bool(anomalies[i])
             sup["cluster_label"] = int(clusters[i])
+
+            # Populate risk_score and risk_reason right after clustering
+            try:
+                risk_info = calculate_risk_score(sup, max_emissions=max_em)
+                sup["risk_score"] = risk_info["risk_score"]
+                sup["risk_reason"] = risk_info["risk_reason"]
+                sup["risk_justification"] = risk_info["risk_justification"]
+                sup["anomaly_reason"] = risk_info["anomaly_reason"]
+            except Exception:
+                sup["risk_score"] = 50.0 if sup["is_anomaly"] else 20.0
+                sup["risk_reason"] = "Standard risk profile."
+                sup["risk_justification"] = "Standard risk profile."
+                sup["anomaly_reason"] = None
 
         db.suppliers.insert_many(suppliers)
 
