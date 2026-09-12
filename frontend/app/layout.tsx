@@ -27,16 +27,13 @@ export default function RootLayout({
           href="https://fonts.gstatic.com"
           crossOrigin="anonymous"
         />
-        {/* Prevent flash of wrong theme */}
+        {/* Prevent flash of wrong theme - default to dark first */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
                 try {
-                  var theme = localStorage.getItem('carbonsense_theme');
-                  if (!theme) {
-                    theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-                  }
+                  var theme = localStorage.getItem('carbonsense_theme') || 'dark';
                   document.documentElement.setAttribute('data-theme', theme);
                 } catch(e) {}
               })();

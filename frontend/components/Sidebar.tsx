@@ -16,6 +16,8 @@ import {
 } from "lucide-react";
 import ThemeToggle from "./ThemeToggle";
 
+import { listRuns } from "@/lib/api";
+
 interface NavGroup {
   title: string;
   items: Array<{
@@ -25,7 +27,6 @@ interface NavGroup {
     badge?: string;
   }>;
 }
-
 
 const navGroups: NavGroup[] = [
   {
@@ -54,6 +55,18 @@ const navGroups: NavGroup[] = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const [latestRunId, setLatestRunId] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const runs = await listRuns();
+        if (runs && runs.length > 0) {
+          setLatestRunId(runs[0].run_id);
+        }
+      } catch (err) {}
+    })();
+  }, []);
 
   return (
     <aside className="sidebar" id="sidebar">
@@ -87,15 +100,22 @@ export default function Sidebar() {
             <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
               {group.items.map((item) => {
                 const Icon = item.icon;
+                const targetHref =
+                  item.href === "/dashboard" && latestRunId
+                    ? `/dashboard/${latestRunId}`
+                    : item.href;
+
                 const isActive =
                   item.href === "/"
                     ? pathname === "/"
+                    : item.href === "/dashboard"
+                    ? pathname.startsWith("/dashboard")
                     : pathname.startsWith(item.href);
 
                 return (
                   <Link
                     key={item.href}
-                    href={item.href}
+                    href={targetHref}
                     className={isActive ? "active" : ""}
                     style={{
                       display: "flex",
