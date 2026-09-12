@@ -1,0 +1,32 @@
+supplier_name,tier,region,energy_kwh,transport_km,transport_mode,material_type,material_qty
+Apex Metals Ltd,Tier 1,UK,480.5,185.0,Road,Steel,4.5
+GreenLogistics UK,Tier 1,UK,390.0,140.2,Rail,Plastic,3.8
+Nordic PolyFab,Tier 1,UK,520.0,210.5,Road,Plastic,5.2
+Thames Precision Engineering,Tier 1,UK,450.2,190.0,Road,Steel,4.1
+Bristol Composite Solutions,Tier 1,UK,380.0,160.4,Rail,Plastic,3.5
+Manchester Steelworks,Tier 1,UK,610.4,240.0,Rail,Steel,6.0
+Oxford BioPlastics,Tier 1,UK,410.0,135.0,Road,Plastic,4.0
+Cambridge High-Tech Alloys,Tier 1,UK,550.8,175.5,Road,Steel,4.8
+Tata Industrial Foundry,Tier 2,India,1850.0,620.0,Rail,Steel,8.5
+Mahindra Casting Division,Tier 2,India,1920.4,580.5,Road,Steel,9.0
+Bharat Aluminum Corp,Tier 2,India,2150.0,840.0,Sea,Aluminum,11.2
+Hinduja Precision Extrusions,Tier 2,India,1780.5,,Rail,Steel,7.8
+Godrej Polymers India,Tier 2,India,1460.0,490.0,Road,Plastic,6.5
+L&T Heavy Fabricators,Tier 2,India,2250.8,910.2,Sea,Aluminum,12.0
+Sundaram Auto Components,Tier 2,India,,540.0,Road,Steel,8.0
+Vedanta Smelting Works,Tier 2,India,2050.0,780.0,Rail,Aluminum,10.5
+Reliance PolyTech,Tier 2,India,1520.5,510.0,Sea,Plastic,7.2
+Kalyani Steels Pune,Tier 2,India,1890.0,640.5,Road,Steel,8.2
+Vardhman Green Weaving,Tier 3,India,4800.0,1950.0,Sea,Textile,18.5
+Arvind Advanced Textiles,Tier 3,India,5200.5,2100.0,Rail,Textile,22.0
+Welspun Export Yarn,Tier 3,India,4650.0,1820.0,Sea,Textile,19.0
+Foxconn Electronics Chennai,Tier 3,India,5900.0,2400.0,Air,Electronics,14.5
+Dixon Circuit Technologies,Tier 3,India,6200.8,2650.0,Air,Electronics,16.2
+Optiemus Microelectronics,Tier 3,India,,2300.0,Air,Electronics,13.8
+Nalcon Wire & Cable,Tier 3,India,4400.0,1750.5,Sea,Aluminum,17.0
+Jindal Heavy Ingot,Tier 3,India,4750.2,1890.0,Rail,Aluminum,19.5
+Alok Synthetic Textiles,Tier 3,India,5100.0,,Sea,Textile,21.0
+Amber Electronic Assemblies,Tier 3,India,5800.4,2450.0,Road,Electronics,15.0
+ANOMALY_MegaPolluter,Tier 1,India,50000.0,15000.0,Air,Electronics,100.0
+ANOMALY_GhostFactory,Tier 2,UK,99000.0,200.0,Road,Steel,0.01
+ANOMALY_SkyFreight,Tier 3,India,300.0,50000.0,Air,Textile,80.0

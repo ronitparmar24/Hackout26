@@ -72,9 +72,10 @@ def export_pdf(run_id: str, db: Session = Depends(get_db)):
 
     # Cluster summary
     cluster_data = db.execute(text(
-        "SELECT cluster_label, count(*), round(avg(total_emissions)::numeric, 2) "
+        "SELECT cluster_label, count(*), round(avg(total_emissions), 2) "
         "FROM suppliers WHERE run_id = :id GROUP BY cluster_label ORDER BY cluster_label"
     ), {"id": run_id}).fetchall()
+
 
     # Build PDF
     buf = io.BytesIO()

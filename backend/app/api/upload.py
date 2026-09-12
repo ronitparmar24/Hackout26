@@ -9,8 +9,13 @@ from app.core.database import get_db
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 from emission_factors import calculate_emissions
+from app.ml.regression import predict_missing
+from app.ml.anomaly import detect_anomalies
+from app.ml.clustering import cluster_suppliers
+from app.ml.recommendations import generate_recommendations
 
 router = APIRouter()
+
 
 REQUIRED_COLS = {"supplier_name", "tier", "region", "energy_kwh", "transport_km",
                  "transport_mode", "material_type", "material_qty"}
@@ -54,9 +59,8 @@ def upload_csv(file: UploadFile = File(...), db: Session = Depends(get_db)):
     total_emissions_sum = 0
     suppliers = []
 
-    from app.ml.regression import predict_missing
-
     for _, row in df.iterrows():
+
         energy = row["energy_kwh"] if pd.notna(row["energy_kwh"]) else None
         transport = row["transport_km"] if pd.notna(row["transport_km"]) else None
         
@@ -104,11 +108,9 @@ def upload_csv(file: UploadFile = File(...), db: Session = Depends(get_db)):
             "total_emissions": round(total, 4),
         })
 
-    from app.ml.anomaly import detect_anomalies
-    from app.ml.clustering import cluster_suppliers
-
     # Bulk insert suppliers
     if suppliers:
+
         anomalies = detect_anomalies(suppliers)
         clusters = cluster_suppliers(suppliers)
         for i, sup in enumerate(suppliers):
@@ -129,9 +131,9 @@ def upload_csv(file: UploadFile = File(...), db: Session = Depends(get_db)):
         """), suppliers)
 
         # Generate recommendations
-        from app.ml.recommendations import generate_recommendations
         recs = generate_recommendations(suppliers)
         if recs:
+
             db.execute(text("""
                 INSERT INTO recommendations (supplier_id, recommended_supplier_id,
                     similarity_score, emissions_reduction_pct)

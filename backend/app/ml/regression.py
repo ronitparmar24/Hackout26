@@ -71,25 +71,53 @@ def train_models(csv_path: str):
 
 _cached_models = None
 
+DEFAULT_ENERGY = {
+    "Tier 1": 500.0,
+    "Tier 2": 1800.0,
+    "Tier 3": 5000.0,
+}
+
+DEFAULT_TRANSPORT = {
+    "Road": 250.0,
+    "Rail": 650.0,
+    "Sea": 1600.0,
+    "Air": 2500.0,
+}
+
 def _load_models():
     global _cached_models
-    if _cached_models is None:
-        _cached_models = joblib.load(MODEL_PATH)
+    if _cached_models is None and os.path.exists(MODEL_PATH):
+        try:
+            _cached_models = joblib.load(MODEL_PATH)
+        except Exception:
+            _cached_models = None
     return _cached_models
 
 def predict_missing(row: dict):
     """
     Given a row dictionary, predict missing energy_kwh and transport_km.
+    Uses trained Random Forest models when available, falling back to industry averages.
     """
+    res = {}
     models = _load_models()
     
-    features = ["tier", "region", "transport_mode", "material_type", "material_qty"]
-    df_row = pd.DataFrame([{k: row.get(k) for k in features}])
-    
-    res = {}
+    if models:
+        try:
+            features = ["tier", "region", "transport_mode", "material_type", "material_qty"]
+            df_row = pd.DataFrame([{k: row.get(k) for k in features}])
+            if pd.isna(row.get("energy_kwh")):
+                res["energy_kwh"] = float(models["energy"].predict(df_row)[0])
+            if pd.isna(row.get("transport_km")):
+                res["transport_km"] = float(models["transport"].predict(df_row)[0])
+            return res
+        except Exception:
+            pass
+
+    # Domain fallback if model is not available
     if pd.isna(row.get("energy_kwh")):
-        res["energy_kwh"] = float(models["energy"].predict(df_row)[0])
+        res["energy_kwh"] = DEFAULT_ENERGY.get(row.get("tier"), 1500.0)
     if pd.isna(row.get("transport_km")):
-        res["transport_km"] = float(models["transport"].predict(df_row)[0])
+        res["transport_km"] = DEFAULT_TRANSPORT.get(row.get("transport_mode"), 500.0)
         
     return res
+
