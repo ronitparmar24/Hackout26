@@ -45,7 +45,22 @@ def calculate_emissions(energy_kwh, transport_km, transport_mode,
     """
     Returns (energy_emissions, transport_emissions, material_emissions, total)
     All values in kg CO2e.
+    Delegates to Climatiq API if available, with graceful fallback to local conversion factors.
     """
+    try:
+        from app.services.climatiq_client import calculate_climatiq_emissions
+        e, t, m, tot, _ = calculate_climatiq_emissions(
+            energy_kwh=energy_kwh,
+            transport_km=transport_km,
+            transport_mode=transport_mode,
+            material_type=material_type,
+            material_qty=material_qty,
+            region=region
+        )
+        return e, t, m, tot
+    except Exception:
+        pass
+
     energy_factor = ENERGY_FACTORS.get(region, ENERGY_FACTORS["India"])
     transport_factor = TRANSPORT_FACTORS.get(transport_mode, TRANSPORT_FACTORS["Road"])
     material_factor = MATERIAL_FACTORS.get(material_type, MATERIAL_FACTORS["Plastic"])

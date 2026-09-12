@@ -7,7 +7,7 @@ from app.core.database import get_db
 
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
-from emission_factors import calculate_emissions
+from app.services.climatiq_client import calculate_climatiq_emissions
 from app.ml.regression import predict_missing
 from app.ml.anomaly import detect_anomalies
 from app.ml.clustering import cluster_suppliers
@@ -87,7 +87,7 @@ def upload_csv(file: UploadFile = File(...), db=Depends(get_db)):
         if transport is not None:
             transport = float(transport)
 
-        e_em, t_em, m_em, total = calculate_emissions(
+        e_em, t_em, m_em, total, factor_source = calculate_climatiq_emissions(
             energy_kwh=energy,
             transport_km=transport,
             transport_mode=row["transport_mode"],
@@ -115,6 +115,7 @@ def upload_csv(file: UploadFile = File(...), db=Depends(get_db)):
             "transport_emissions": round(t_em, 4),
             "material_emissions": round(m_em, 4),
             "total_emissions": round(total, 4),
+            "emission_factor_source": factor_source,
             "risk_score": None,
             "risk_justification": None,
             "anomaly_reason": None,

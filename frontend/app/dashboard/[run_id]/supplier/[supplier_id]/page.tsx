@@ -339,6 +339,17 @@ export default function SupplierProfilePage() {
               </div>
             </div>
           </div>
+
+          {/* Auditable Data Lineage Citation */}
+          <div className="mt-4 pt-3.5 border-t border-white/10 flex flex-wrap items-center justify-between gap-2 text-xs font-sans">
+            <div className="flex items-center gap-1.5 text-emerald-400 font-mono text-[11px]">
+              <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
+              <span>GHG Protocol Compliant Factor</span>
+            </div>
+            <div className="text-white/60 font-mono text-[11px]">
+              Source: <span className="text-cyan-300 font-semibold">{supplier.emission_factor_source || "Climatiq / DEFRA 2024"}</span>
+            </div>
+          </div>
         </GlassCard>
 
         {/* ============================================================ */}

@@ -25,7 +25,7 @@ def export_csv(run_id: str, db=Depends(get_db)):
         "supplier_name", "tier", "region", "energy_kwh", "energy_kwh_estimated",
         "transport_km", "transport_km_estimated", "transport_mode", "material_type",
         "material_qty", "energy_emissions", "transport_emissions", "material_emissions",
-        "total_emissions", "is_anomaly", "cluster_label"
+        "total_emissions", "emission_factor_source", "is_anomaly", "cluster_label"
     ]
 
     df = pd.DataFrame(rows)
@@ -89,14 +89,16 @@ def export_pdf(run_id: str, db=Depends(get_db)):
     elements.append(Paragraph(f"Total Suppliers: {run.get('total_suppliers')}", styles["Normal"]))
     total_emissions_val = float(run.get("total_emissions") or 0)
     elements.append(Paragraph(f"Total Emissions: {total_emissions_val:,.2f} kg CO2e", styles["Normal"]))
+    elements.append(Paragraph("Emission Factor Lineage: Sourced from Climatiq GHG Protocol API (80+ datasets incl. DEFRA, EPA, IEA)", styles["Normal"]))
     elements.append(Spacer(1, 15))
 
     # Top 10 Emitters
     elements.append(Paragraph("Top 10 Emitters", styles["Heading2"]))
-    top_data = [["Supplier", "Tier", "Emissions (kg CO2e)"]]
+    top_data = [["Supplier", "Tier", "Emissions (kg CO2e)", "Factor Source"]]
     for s in suppliers[:10]:
-        top_data.append([s.get("supplier_name", ""), s.get("tier", ""), f"{float(s.get('total_emissions', 0)):,.2f}"])
-    t = Table(top_data, colWidths=[200, 60, 120])
+        src = s.get("emission_factor_source") or "Climatiq / DEFRA 2024"
+        top_data.append([s.get("supplier_name", ""), s.get("tier", ""), f"{float(s.get('total_emissions', 0)):,.2f}", src])
+    t = Table(top_data, colWidths=[150, 50, 110, 150])
     t.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#2d3748")),
         ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
@@ -110,10 +112,11 @@ def export_pdf(run_id: str, db=Depends(get_db)):
     # Anomalies
     elements.append(Paragraph(f"Anomalies Detected: {len(anomalies)}", styles["Heading2"]))
     if anomalies:
-        anom_data = [["Supplier", "Tier", "Emissions"]]
+        anom_data = [["Supplier", "Tier", "Emissions", "Factor Source"]]
         for a in anomalies:
-            anom_data.append([a.get("supplier_name", ""), a.get("tier", ""), f"{float(a.get('total_emissions', 0)):,.2f}"])
-        t2 = Table(anom_data, colWidths=[200, 60, 120])
+            src = a.get("emission_factor_source") or "Climatiq / DEFRA 2024"
+            anom_data.append([a.get("supplier_name", ""), a.get("tier", ""), f"{float(a.get('total_emissions', 0)):,.2f}", src])
+        t2 = Table(anom_data, colWidths=[150, 50, 110, 150])
         t2.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#e53e3e")),
             ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),

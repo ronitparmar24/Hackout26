@@ -27,6 +27,7 @@ export interface Supplier {
   total_emissions: number;
   is_anomaly: boolean;
   cluster_label: number;
+  emission_factor_source?: string;
   risk_score?: number;
   risk_reason?: string;
   risk_justification?: string;

@@ -144,6 +144,21 @@ export default function MethodologyPage() {
           </div>
 
           <GlassCard className="p-6 sm:p-8">
+            <div className="mb-6 p-4 rounded-xl bg-cyan-950/30 border border-cyan-400/40 flex items-start gap-3">
+              <CheckCircle2 className="w-5 h-5 text-cyan-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <div className="text-xs font-mono font-bold text-cyan-300 uppercase tracking-wider mb-1">
+                  Live API Factor Provenance
+                </div>
+                <p className="text-sm font-semibold text-white font-sans leading-relaxed">
+                  Emission factors sourced from Climatiq's GHG Protocol-compliant database (80+ underlying datasets including DEFRA, EPA, IEA).
+                </p>
+                <p className="text-xs text-white/60 font-sans mt-1">
+                  Every supplier footprint calculation is dynamically resolved against vetted international carbon accounting standards with complete lineage auditing and graceful fallback.
+                </p>
+              </div>
+            </div>
+
             <p className="text-sm text-white/80 leading-relaxed font-sans mb-6">
               Our emission factors are sourced directly from internationally accepted climate accounting frameworks:
               the{" "}

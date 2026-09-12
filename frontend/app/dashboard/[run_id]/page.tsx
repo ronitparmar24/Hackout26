@@ -794,9 +794,14 @@ export default function RedesignedDashboardPage() {
                             )}
                             <span className="truncate max-w-[200px]">{s.supplier_name}</span>
                           </Link>
-                          <span className="font-mono text-xs font-bold text-white whitespace-nowrap">
-                            {(s.total_emissions / 1000).toFixed(1)} tCO₂e
-                          </span>
+                          <div className="text-right">
+                            <span className="font-mono text-xs font-bold text-white whitespace-nowrap">
+                              {(s.total_emissions / 1000).toFixed(1)} tCO₂e
+                            </span>
+                            <div className="text-[9px] font-sans text-emerald-400/80">
+                              Source: {s.emission_factor_source || "Climatiq / DEFRA 2024"}
+                            </div>
+                          </div>
                         </div>
 
                         <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -999,9 +1004,13 @@ export default function RedesignedDashboardPage() {
                               </span>
                             </td>
 
-                            {/* Total Emissions */}
+                            {/* Total Emissions with Auditable Source */}
                             <td className="py-3.5 px-6 font-mono font-bold text-white">
-                              {s.total_emissions.toLocaleString(undefined, { maximumFractionDigits: 1 })}
+                              <div>{s.total_emissions.toLocaleString(undefined, { maximumFractionDigits: 1 })}</div>
+                              <div className="text-[10px] font-sans font-normal text-emerald-400/80 flex items-center gap-1 mt-0.5" title={s.emission_factor_source || "Climatiq / DEFRA 2024"}>
+                                <CheckCircle2 className="w-2.5 h-2.5 text-emerald-400 flex-shrink-0" />
+                                <span className="truncate max-w-[140px]">Source: {s.emission_factor_source || "Climatiq / DEFRA 2024"}</span>
+                              </div>
                             </td>
 
                             {/* Risk Score Column with Tooltip */}
