@@ -27,6 +27,9 @@ export interface Supplier {
   total_emissions: number;
   is_anomaly: boolean;
   cluster_label: number;
+  risk_score?: number;
+  risk_justification?: string;
+  anomaly_reason?: string;
 }
 
 export interface RunResponse {
@@ -36,6 +39,8 @@ export interface RunResponse {
   total_emissions: number;
   status: string;
   suppliers?: Supplier[];
+  executive_summary?: string;
+  recommended_actions?: string;
 }
 
 export interface UploadResponse {
@@ -44,6 +49,15 @@ export interface UploadResponse {
   total_suppliers: number;
   total_emissions: number;
   status: string;
+}
+
+export interface Settings {
+  company_name: string;
+  industry: string;
+  target_reduction_pct: number;
+  baseline_year: number;
+  currency: string;
+  default_region: string;
 }
 
 /* ---------- API Calls ---------- */
@@ -86,5 +100,44 @@ export function getExportPDFUrl(runId: string): string {
   return `${API_BASE}/api/export/pdf/${runId}`;
 }
 
-export default api;
+export async function chatWithData(runId: string, message: string) {
+  const { data } = await api.post(`/api/chat/${runId}`, { message });
+  return data;
+}
 
+export async function getSummary(runId: string) {
+  const { data } = await api.get(`/api/summary/${runId}`);
+  return data;
+}
+
+export async function filterNLP(query: string) {
+  const { data } = await api.post('/api/filter-nlp', { query });
+  return data;
+}
+
+export async function getForecast(runId: string) {
+  const { data } = await api.get(`/api/forecast/${runId}`);
+  return data;
+}
+
+export async function getAnomalyExplanation(supplierId: string) {
+  const { data } = await api.get(`/api/anomaly-explanation/${supplierId}`);
+  return data;
+}
+
+export async function getSettings() {
+  const { data } = await api.get('/api/settings');
+  return data;
+}
+
+export async function updateSettings(settings: any) {
+  const { data } = await api.post('/api/settings', settings);
+  return data;
+}
+
+export async function applyRecommendation(runId: string, supplierId: string, recommendedSupplierId: string) {
+  const { data } = await api.post('/api/recommendations/apply', { run_id: runId, supplier_id: supplierId, recommended_supplier_id: recommendedSupplierId });
+  return data;
+}
+
+export default api;

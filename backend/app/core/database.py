@@ -19,7 +19,9 @@ def init_db():
                 filename TEXT NOT NULL,
                 total_suppliers INTEGER,
                 total_emissions REAL,
-                status TEXT NOT NULL DEFAULT 'processing'
+                status TEXT NOT NULL DEFAULT 'processing',
+                executive_summary TEXT,
+                recommended_actions TEXT
             )
         """))
         conn.execute(text("""
@@ -41,7 +43,10 @@ def init_db():
                 material_emissions REAL,
                 total_emissions REAL,
                 is_anomaly BOOLEAN NOT NULL DEFAULT 0,
-                cluster_label INTEGER
+                cluster_label INTEGER,
+                risk_score REAL,
+                risk_justification TEXT,
+                anomaly_reason TEXT
             )
         """))
         conn.execute(text("""
@@ -51,6 +56,26 @@ def init_db():
                 recommended_supplier_id TEXT NOT NULL REFERENCES suppliers(id) ON DELETE CASCADE,
                 similarity_score REAL NOT NULL,
                 emissions_reduction_pct REAL
+            )
+        """))
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS company_settings (
+                id TEXT PRIMARY KEY DEFAULT 'default',
+                company_name TEXT NOT NULL DEFAULT 'Acme Corp',
+                industry TEXT NOT NULL DEFAULT 'Manufacturing',
+                target_reduction_pct REAL NOT NULL DEFAULT 0,
+                baseline_year INTEGER NOT NULL DEFAULT 2023,
+                currency TEXT NOT NULL DEFAULT 'USD',
+                default_region TEXT NOT NULL DEFAULT 'Global'
+            )
+        """))
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS applied_recommendations (
+                id TEXT PRIMARY KEY,
+                run_id TEXT NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
+                supplier_id TEXT NOT NULL REFERENCES suppliers(id) ON DELETE CASCADE,
+                recommended_supplier_id TEXT NOT NULL REFERENCES suppliers(id) ON DELETE CASCADE,
+                applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """))
 

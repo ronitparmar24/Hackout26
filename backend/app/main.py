@@ -9,6 +9,9 @@ from sqlalchemy import text
 from app.core.database import engine, init_db
 from app.api.upload import router as upload_router
 from app.api.export import router as export_router
+from app.api.ai import router as ai_router
+from app.api.settings import router as settings_router
+from app.api.recommendations import router as recs_router
 
 app = FastAPI(title="Carbon-Aware Supply Chain Dashboard")
 
@@ -22,6 +25,9 @@ app.add_middleware(
 
 app.include_router(upload_router)
 app.include_router(export_router)
+app.include_router(ai_router)
+app.include_router(settings_router)
+app.include_router(recs_router)
 
 
 @app.on_event("startup")

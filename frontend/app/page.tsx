@@ -1,8 +1,8 @@
 "use client";
 
 import React from "react";
-import UploadForm from "@/components/UploadForm";
-import { Leaf, BarChart3, Shield, Cpu } from "lucide-react";
+import Link from "next/link";
+import { Leaf, BarChart3, Shield, Cpu, ArrowRight } from "lucide-react";
 import GlassCard from "@/components/GlassCard";
 
 const features = [
@@ -73,10 +73,16 @@ export default function HomePage() {
         </p>
 
         <div
-          className="hero-upload-container animate-fade-in-up"
+          className="hero-upload-container animate-fade-in-up flex justify-center mt-12"
           style={{ animationDelay: "500ms" }}
         >
-          <UploadForm />
+          <Link 
+            href="/upload" 
+            className="px-10 py-5 bg-white text-black font-semibold rounded-full hover:bg-cyan-50 transition-colors shadow-[0_0_20px_rgba(255,255,255,0.3)] hover:shadow-[0_0_30px_rgba(6,182,212,0.5)] flex items-center gap-2 group text-lg"
+          >
+            Analyze Your Supply Chain
+            <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
+          </Link>
         </div>
       </div>
 
