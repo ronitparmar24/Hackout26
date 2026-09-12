@@ -206,9 +206,18 @@ function UserAuthMenu() {
         onClick={() => setDropdownOpen(!dropdownOpen)}
         className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-xs font-heading text-white/90 hover:text-white transition-colors"
       >
-        <div className="w-5 h-5 rounded-lg bg-gradient-to-tr from-cyan-400 to-emerald-400 flex items-center justify-center text-black font-bold text-[10px]">
-          {user.name ? user.name.charAt(0).toUpperCase() : "U"}
-        </div>
+        {user.avatarUrl ? (
+          <img
+            src={user.avatarUrl}
+            alt={user.name || "User Avatar"}
+            className="w-5 h-5 rounded-full object-cover border border-white/20 shadow-sm"
+            referrerPolicy="no-referrer"
+          />
+        ) : (
+          <div className="w-5 h-5 rounded-lg bg-gradient-to-tr from-cyan-400 to-emerald-400 flex items-center justify-center text-black font-bold text-[10px]">
+            {user.name ? user.name.charAt(0).toUpperCase() : "U"}
+          </div>
+        )}
         <span className="hidden sm:inline-block max-w-[100px] truncate">
           {user.isGuest ? "Guest Demo" : user.name || user.email}
         </span>
@@ -222,19 +231,30 @@ function UserAuthMenu() {
             onClick={() => setDropdownOpen(false)}
           />
           <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-[#0a0f1d] border border-white/15 p-2 shadow-2xl z-50 animate-fade-in-up">
-            <div className="px-3 py-2 border-b border-white/10 mb-1">
-              <div className="text-xs font-bold text-white truncate font-heading">
-                {user.name || "Authenticated User"}
-              </div>
-              <div className="text-[11px] text-white/50 truncate font-mono">
-                {user.email || "guest.demo@carbonsense.io"}
-              </div>
-              {user.isGuest && (
-                <span className="inline-block mt-1 px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-300 font-mono text-[9px] border border-cyan-400/20">
-                  Guest Demo Mode
-                </span>
+            <div className="px-3 py-2 border-b border-white/10 mb-1 flex items-center gap-2.5">
+              {user.avatarUrl && (
+                <img
+                  src={user.avatarUrl}
+                  alt={user.name || "User"}
+                  className="w-8 h-8 rounded-full object-cover border border-white/20 shadow-sm flex-shrink-0"
+                  referrerPolicy="no-referrer"
+                />
               )}
+              <div className="overflow-hidden">
+                <div className="text-xs font-bold text-white truncate font-heading">
+                  {user.name || "Authenticated User"}
+                </div>
+                <div className="text-[11px] text-white/50 truncate font-mono">
+                  {user.email || "guest.demo@carbonsense.io"}
+                </div>
+                {user.isGuest && (
+                  <span className="inline-block mt-1 px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-300 font-mono text-[9px] border border-cyan-400/20">
+                    Guest Demo Mode
+                  </span>
+                )}
+              </div>
             </div>
+
 
             <Link
               href="/settings"

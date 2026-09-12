@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://carbonsense-demo.supabase.co";
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://ooskupwykeyivcmatjty.supabase.co";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "demo-anon-key";
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -45,6 +45,13 @@ export function setGuestDemoSession() {
   document.cookie = "cs_session=demo-guest-token; path=/; max-age=604800";
 }
 
+export function setSupabaseUserSession(token: string, email?: string) {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem("carbonsense_guest_token");
+  if (email) localStorage.setItem("carbonsense_user_email", email);
+  document.cookie = `cs_session=${token}; path=/; max-age=604800`;
+}
+
 export function clearUserSession() {
   if (typeof window === "undefined") return;
   localStorage.removeItem("carbonsense_guest_token");
@@ -62,10 +69,13 @@ export async function getUserSession() {
   try {
     const { data: { session } } = await supabase.auth.getSession();
     if (session?.user) {
+      const meta = session.user.user_metadata || {};
+      const avatarUrl = meta.avatar_url || meta.picture || null;
       return {
         id: session.user.id,
         email: session.user.email,
-        name: session.user.user_metadata?.full_name || session.user.email?.split("@")[0],
+        name: meta.full_name || meta.name || session.user.email?.split("@")[0],
+        avatarUrl,
         token: session.access_token,
         isGuest: false,
       };
@@ -74,11 +84,12 @@ export async function getUserSession() {
 
   // Check guest demo session
   const guestToken = localStorage.getItem("carbonsense_guest_token");
-  if (guestToken || document.cookie.includes("cs_session=demo-guest-token")) {
+  if (guestToken || (typeof document !== "undefined" && document.cookie.includes("cs_session=demo-guest-token"))) {
     return {
       id: DEMO_GUEST_USER.id,
       email: DEMO_GUEST_USER.email,
       name: "Guest Auditor (Demo)",
+      avatarUrl: null,
       token: "demo-guest-token",
       isGuest: true,
     };
@@ -86,3 +97,4 @@ export async function getUserSession() {
 
   return null;
 }
+
