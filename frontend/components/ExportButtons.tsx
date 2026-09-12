@@ -10,27 +10,28 @@ interface Props {
 
 export default function ExportButtons({ runId }: Props) {
   return (
-    <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+    <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap">
       <a
         href={getExportCSVUrl(runId)}
         download
-        className="btn btn-secondary"
+        className="btn btn-secondary !py-2 !px-3 sm:!px-4 !text-xs whitespace-nowrap"
         id="export-csv-btn"
         style={{ textDecoration: "none" }}
       >
-        <FileDown size={16} />
-        Export CSV
+        <FileDown size={14} />
+        <span>Export CSV</span>
       </a>
       <a
         href={getExportPDFUrl(runId)}
         download
-        className="btn btn-primary"
+        className="btn btn-primary !py-2 !px-3 sm:!px-4 !text-xs whitespace-nowrap"
         id="export-pdf-btn"
         style={{ textDecoration: "none" }}
       >
-        <FileText size={16} />
-        Export PDF Report
+        <FileText size={14} />
+        <span>Export PDF Report</span>
       </a>
     </div>
   );
 }
+

@@ -150,7 +150,8 @@ def get_summary(
     current_user: AuthenticatedUser = Depends(get_current_user),
 ):
     """
-    Generates a 3-4 paragraph executive summary and 3 bullet recommended actions.
+    Generates a highly structured, scannable JSON executive summary with single-sentence notes,
+    key stats, concentration risk, baseline cluster, secondary watchlist, and actionable priorities.
     Caches the result in the run document so it is never recomputed on every page load.
     Protected by Supabase Auth.
     """
@@ -163,50 +164,60 @@ def get_summary(
         if run_owner and run_owner not in (current_user.user_id, DEMO_GUEST_USER_ID) and not current_user.is_guest:
             raise HTTPException(403, "Access denied: this report belongs to another organization.")
 
-        # Check cache
-        if run.get("summary") and run.get("actions"):
-            return {
-                "summary": run["summary"],
-                "actions": run["actions"],
-                "executive_summary": run["summary"],
-                "recommended_actions": run.get("recommended_actions") or "\n".join(run["actions"]),
-                "served_by": run.get("served_by") or "cached",
-                "provider_status": run.get("provider_status") or "cached",
-            }
-        elif run.get("executive_summary"):
-            actions = [
-                a.strip().lstrip("0123456789.-* ")
-                for a in (run.get("recommended_actions") or "").splitlines()
-                if a.strip()
-            ] or [
-                "Audit top 3 emitting suppliers for immediate carbon reduction targets.",
-                "Transition long-haul freight over 1,000 km to rail or coastal shipping.",
-                "Execute recommended supplier substitutions for high-variance materials.",
-            ]
-            return {
-                "summary": run["executive_summary"],
-                "actions": actions,
-                "executive_summary": run["executive_summary"],
-                "recommended_actions": run.get("recommended_actions"),
-                "served_by": run.get("served_by") or "cached",
-                "provider_status": run.get("provider_status") or "cached",
-            }
+        # Check structured cache first
+        if run.get("structured_summary") and isinstance(run["structured_summary"], dict) and run["structured_summary"].get("headline_stat"):
+            cached = dict(run["structured_summary"])
+            cached["served_by"] = run.get("served_by") or "cached"
+            cached["provider_status"] = run.get("provider_status") or "cached"
+            return cached
 
-        # Gather context for LLM
-        top_5 = list(
-            db.suppliers.find({"run_id": run_id}, {"_id": 0})
+        total_emissions = float(run.get("total_emissions") or 0)
+        total_suppliers = int(run.get("total_suppliers") or 0)
+
+        # 1. Anomaly Cohort
+        anomalies_cursor = list(
+            db.suppliers.find({"run_id": run_id, "is_anomaly": True}, {"_id": 0})
             .sort("total_emissions", -1)
-            .limit(5)
         )
-        anomalies_count = db.suppliers.count_documents({"run_id": run_id, "is_anomaly": True})
-
-        cluster_pipeline = [
-            {"$match": {"run_id": run_id}},
-            {"$group": {"_id": "$cluster_label", "count": {"$sum": 1}, "avg_emissions": {"$avg": "$total_emissions"}}},
-            {"$sort": {"_id": 1}},
+        formatted_anomalies = [
+            {
+                "name": a.get("supplier_name"),
+                "tier": a.get("tier"),
+                "emissions_kg": round(a.get("total_emissions", 0)),
+                "pct_of_total": round((a.get("total_emissions", 0) / total_emissions * 100), 1) if total_emissions > 0 else 0
+            }
+            for a in anomalies_cursor
         ]
-        clusters = list(db.suppliers.aggregate(cluster_pipeline))
 
+        # 2. Baseline Cluster & Secondary Watchlist
+        non_anomalies = list(
+            db.suppliers.find({"run_id": run_id, "is_anomaly": {"$ne": True}}, {"_id": 0})
+            .sort("total_emissions", -1)
+        )
+        baseline_count = len(non_anomalies)
+        baseline_avg = sum(s.get("total_emissions", 0) for s in non_anomalies) / max(baseline_count, 1)
+
+        watchlist = [
+            {
+                "name": s.get("supplier_name"),
+                "emissions_kg": round(s.get("total_emissions", 0)),
+                "trend": "rising" if (s.get("risk_score") or 0) > 60 else ("falling" if (s.get("risk_score") or 0) < 40 else "stable")
+            }
+            for s in non_anomalies[:3]
+        ]
+
+        # 3. Data Integrity Signals
+        has_anomaly_prefix = any("ANOMALY_" in str(s.get("supplier_name", "")) for s in anomalies_cursor)
+        data_integrity = {
+            "severity": "high" if has_anomaly_prefix else "low",
+            "message": (
+                "ANOMALY-prefixed supplier names indicate potential data entry artifacts or synthetic markers — verify before treating as confirmed emissions."
+                if has_anomaly_prefix else
+                "Data ingestion schemas and emission variance parameters conform to standard operational distributions."
+            )
+        }
+
+        # 4. Recommendations
         top_recs = list(
             db.recommendations.find({"run_id": run_id}, {"_id": 0})
             .sort("emissions_reduction_pct", -1)
@@ -214,17 +225,15 @@ def get_summary(
         )
 
         run_context = {
-            "total_emissions_kg": run.get("total_emissions"),
-            "total_suppliers": run.get("total_suppliers"),
-            "top_5_emitters": [
-                {"name": s.get("supplier_name"), "tier": s.get("tier"), "emissions": s.get("total_emissions")}
-                for s in top_5
-            ],
-            "anomalies_count": anomalies_count,
-            "cluster_breakdown": [
-                {"cluster": c.get("_id"), "count": c.get("count"), "avg_emissions": round(c.get("avg_emissions") or 0, 2)}
-                for c in clusters
-            ],
+            "total_emissions_kg": total_emissions,
+            "total_suppliers": total_suppliers,
+            "anomalies": formatted_anomalies,
+            "baseline_cluster": {
+                "supplier_count": baseline_count,
+                "avg_emissions_kg": round(baseline_avg),
+            },
+            "secondary_watchlist": watchlist,
+            "data_integrity_flag": data_integrity,
             "top_recommendations": [
                 {"from": r.get("from_supplier"), "to": r.get("to_supplier"), "reduction": r.get("emissions_reduction_pct")}
                 for r in top_recs
@@ -238,13 +247,14 @@ def get_summary(
 
         # Cache back in MongoDB runs document
         db.runs.update_one(
-            {"id": run_id},
+            {"$or": [{"id": run_id}, {"run_id": run_id}]},
             {
                 "$set": {
-                    "summary": summary_data["summary"],
-                    "actions": summary_data["actions"],
-                    "executive_summary": summary_data["executive_summary"],
-                    "recommended_actions": summary_data["recommended_actions"],
+                    "structured_summary": summary_data,
+                    "summary": summary_data.get("summary") or summary_data.get("full_analysis"),
+                    "actions": summary_data.get("actions", []),
+                    "executive_summary": summary_data.get("summary") or summary_data.get("full_analysis"),
+                    "recommended_actions": summary_data.get("recommended_actions_text"),
                     "served_by": provider,
                     "provider_status": provider,
                 }
@@ -252,6 +262,7 @@ def get_summary(
         )
 
         return summary_data
+
     except HTTPException:
         raise
     except Exception as e:

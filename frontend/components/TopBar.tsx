@@ -55,30 +55,31 @@ export default function TopBar() {
   const activeRunId = latestRun?.run_id || "demo";
 
   return (
-    <header className="glass-card mb-6 px-4 sm:px-6 py-3 border-white/10 relative z-40">
+    <header className="glass-card mb-6 px-3.5 sm:px-5 py-3 border-white/10 relative z-40 w-full max-w-full">
       <div className="flex items-center justify-between flex-wrap gap-3">
         {/* Left: Active Dataset Status */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5 min-w-0">
           <div className="inline-flex items-center gap-2 text-xs font-semibold text-emerald-400">
             <span
-              className={`w-2 h-2 rounded-full ${
+              className={`w-2 h-2 rounded-full flex-shrink-0 ${
                 latestRun ? "bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.8)]" : "bg-amber-400"
               }`}
             />
-            <span className="font-mono truncate max-w-[160px] sm:max-w-none text-white">
+            <span className="font-mono truncate max-w-[140px] sm:max-w-[240px] md:max-w-none text-white">
               {latestRun ? `Dataset: ${latestRun.filename}` : "No Dataset Active"}
             </span>
           </div>
 
           {latestRun && (
-            <span className="hidden sm:inline-flex text-[11px] font-mono px-2.5 py-0.5 rounded-full bg-white/5 border border-white/10 text-white/60">
+            <span className="hidden lg:inline-flex text-[11px] font-mono px-2.5 py-0.5 rounded-full bg-white/5 border border-white/10 text-white/60 flex-shrink-0">
               {latestRun.total_suppliers} Vendors • {(latestRun.total_emissions / 1000).toFixed(0)}t CO₂e
             </span>
           )}
         </div>
 
         {/* Right: Operational Shortcuts & Mobile Hamburger */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-shrink-0">
+
           <Link
             href={`/simulator?run_id=${activeRunId}`}
             className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-xs font-heading font-medium text-white/80 hover:text-white border border-white/10 transition-colors"

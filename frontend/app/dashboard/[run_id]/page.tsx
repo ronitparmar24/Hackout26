@@ -343,28 +343,28 @@ export default function RedesignedDashboardPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 pb-32">
+    <div className="w-full max-w-7xl mx-auto px-1 sm:px-2 py-4 pb-32 min-w-0">
       {/* Top Header */}
       <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
-        <div>
-          <div className="flex items-center gap-3 mb-1">
-            <h1 className="text-2xl sm:text-4xl font-bold font-heading text-white tracking-tight">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-3 mb-1 flex-wrap">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold font-heading text-white tracking-tight">
               Scope 3 Intelligence Dashboard
             </h1>
             <StatusBadge color="low">Live Audit</StatusBadge>
           </div>
-          <p className="text-white/60 text-sm font-sans">
+          <p className="text-white/60 text-xs sm:text-sm font-sans truncate">
             Manifest: <strong className="text-white">{data.filename}</strong> • Run ID:{" "}
             <span className="font-mono text-cyan-400 text-xs">{data.run_id}</span>
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap flex-shrink-0">
           <button
             type="button"
             onClick={handleResetDemo}
             disabled={isResettingDemo}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-400/30 text-xs font-mono font-medium transition-all shadow-sm hover:scale-105"
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-400/30 text-xs font-mono font-medium transition-all shadow-sm hover:scale-105 whitespace-nowrap"
             title="Re-run live demo pipeline from scratch"
           >
             <RotateCcw className={`w-3.5 h-3.5 ${isResettingDemo ? "animate-spin" : ""}`} />
@@ -374,10 +374,12 @@ export default function RedesignedDashboardPage() {
         </div>
       </div>
 
+
       {/* AI Executive Summary Widget */}
       <div className="mb-8">
-        <AIExecutiveSummary runId={runId} />
+        <AIExecutiveSummary runId={runId} suppliers={data.suppliers} />
       </div>
+
 
       {/* ============================================================ */}
       {/* TOP KPI ROW: 4 SWIPEABLE / GRID GLASS CARDS WITH ANIMATED COUNTERS */}
