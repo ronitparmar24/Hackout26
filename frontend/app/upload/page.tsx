@@ -45,9 +45,25 @@ export default function UploadPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  
+  // Cinematic Parsing State
+  const [isParsing, setIsParsing] = useState(false);
+  const [parseStep, setParseStep] = useState(0);
+
+  const PARSE_STEPS = [
+    "Validating CSV Schema against GHG Protocol...",
+    "Imputing Missing Values (Energy/Transport)...",
+    "Running Isolation Forest Anomaly Detection...",
+    "Finalizing Data Matrix..."
+  ];
 
   // Parse first 5 rows of CSV for instant glass table preview
   const parseCSVPreview = (fileObj: File) => {
+    setIsParsing(true);
+    setParseStep(0);
+    setPreview(null);
+    setErrorMessage(null);
+
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
@@ -58,6 +74,7 @@ export default function UploadPage() {
           .filter((l) => l.length > 0);
 
         if (lines.length < 2) {
+          setIsParsing(false);
           setErrorMessage("The selected file is empty or missing headers.");
           return;
         }
@@ -67,13 +84,24 @@ export default function UploadPage() {
           .slice(1, 6)
           .map((line) => line.split(",").map((c) => c.trim().replace(/^["']|["']$/g, "")));
 
-        setPreview({
-          headers,
-          rows,
-          totalRows: lines.length - 1,
-        });
-        setErrorMessage(null);
+        // Simulate Cinematic Delay
+        let currentStep = 0;
+        const interval = setInterval(() => {
+          currentStep += 1;
+          setParseStep(currentStep);
+          if (currentStep >= PARSE_STEPS.length) {
+            clearInterval(interval);
+            setIsParsing(false);
+            setPreview({
+              headers,
+              rows,
+              totalRows: lines.length - 1,
+            });
+          }
+        }, 600);
+
       } catch (err) {
+        setIsParsing(false);
         setErrorMessage("Failed to read CSV preview. Please ensure it is standard UTF-8 CSV.");
       }
     };
@@ -243,6 +271,23 @@ export default function UploadPage() {
                 />
               </label>
             </div>
+          </div>
+        </GlassCard>
+      ) : isParsing ? (
+        <GlassCard variant="strong" className="p-8 sm:p-12 mb-8 border-cyan-500/30 text-center relative overflow-hidden flex flex-col items-center justify-center shadow-[0_0_50px_rgba(34,211,238,0.15)] min-h-[300px]">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-cyan-900/40 via-transparent to-transparent pointer-events-none" />
+          <RefreshCw className="w-12 h-12 text-cyan-400 animate-spin mb-6 relative z-10" />
+          <h3 className="text-xl font-bold font-heading text-white mb-2 relative z-10 tracking-wider uppercase">
+            Initiating ML Pipeline
+          </h3>
+          <p className="text-cyan-300 font-mono text-sm relative z-10 mb-8 h-6 animate-pulse">
+            {PARSE_STEPS[Math.min(parseStep, PARSE_STEPS.length - 1)]}
+          </p>
+          <div className="w-full max-w-md h-2 bg-white/10 rounded-full overflow-hidden relative z-10 border border-white/5">
+            <div 
+              className="h-full bg-cyan-400 rounded-full transition-all duration-300 ease-out shadow-[0_0_10px_rgba(34,211,238,0.8)]"
+              style={{ width: `${((parseStep + 1) / PARSE_STEPS.length) * 100}%` }}
+            />
           </div>
         </GlassCard>
       ) : (

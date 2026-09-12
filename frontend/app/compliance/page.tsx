@@ -124,6 +124,70 @@ function ComplianceContent() {
         )}
       </div>
 
+      {/* Regulatory Threat Level (DEFCON Style) */}
+      <div className="mb-8 animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
+        {(() => {
+          const anomalies = suppliers.filter(s => s.is_anomaly).length;
+          let threatLvl = 5;
+          let color = "emerald";
+          let label = "SAFE";
+          let text = "Emissions distribution is within normal parameters. Audit risk is minimal.";
+          
+          if (anomalies >= 5) {
+            threatLvl = 1;
+            color = "red";
+            label = "CRITICAL";
+            text = "Multiple high-risk outliers detected. Immediate CBAM tax penalties likely.";
+          } else if (anomalies >= 2) {
+            threatLvl = 2;
+            color = "orange";
+            label = "HIGH";
+            text = "Anomalies detected. High likelihood of regulatory scrutiny under CSRD.";
+          } else if (anomalies === 1) {
+            threatLvl = 3;
+            color = "amber";
+            label = "ELEVATED";
+            text = "Single anomaly detected. Review recommended before compliance submission.";
+          }
+
+          const colorClasses = {
+            emerald: "bg-emerald-500/10 border-emerald-500/40 text-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.15)]",
+            amber: "bg-amber-500/10 border-amber-500/40 text-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.15)]",
+            orange: "bg-orange-500/10 border-orange-500/40 text-orange-400 shadow-[0_0_20px_rgba(249,115,22,0.15)]",
+            red: "bg-red-500/10 border-red-500/40 text-red-400 shadow-[0_0_25px_rgba(239,68,68,0.25)] animate-pulse"
+          }[color] as string;
+
+          return (
+            <GlassCard className={`p-6 border ${colorClasses}`}>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                <div className="flex items-center gap-4">
+                  <div className={`w-16 h-16 rounded-full flex items-center justify-center border-2 border-current bg-black/40 shadow-inner`}>
+                    <span className="font-heading text-2xl font-bold tracking-widest">{threatLvl}</span>
+                  </div>
+                  <div>
+                    <div className="text-[10px] font-mono font-bold tracking-widest uppercase mb-1">
+                      Regulatory Threat Level
+                    </div>
+                    <div className="text-2xl font-bold font-heading tracking-widest uppercase">
+                      {label}
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="sm:text-right max-w-sm">
+                  <div className="text-sm font-bold mb-1">
+                    {anomalies} Anomaly Flag{anomalies !== 1 && 's'} Detected
+                  </div>
+                  <div className="text-xs opacity-70 leading-relaxed font-mono">
+                    {text}
+                  </div>
+                </div>
+              </div>
+            </GlassCard>
+          );
+        })()}
+      </div>
+
       {/* Regulatory Readiness Cards */}
       <div className="kpi-grid animate-fade-in-up">
         {frameworkReadiness.map((fw) => (

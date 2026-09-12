@@ -3,8 +3,10 @@ import "./globals.css";
 import Sidebar from "@/components/Sidebar";
 import AnimatedBackground from "@/components/AnimatedBackground";
 import TopBar from "@/components/TopBar";
+import CommandPalette from "@/components/CommandPalette";
+import MouseGlow from "@/components/MouseGlow";
+import FloatingActionMenu from "@/components/FloatingActionMenu";
 import { Suspense } from "react";
-
 
 import ErrorBoundary from "@/components/ErrorBoundary";
 
@@ -44,6 +46,8 @@ export default function RootLayout({
         />
       </head>
       <body>
+        <MouseGlow />
+        <CommandPalette />
         <AnimatedBackground />
         <div className="app-layout">
           <Sidebar />
@@ -52,10 +56,13 @@ export default function RootLayout({
               <TopBar />
             </Suspense>
             <ErrorBoundary>
-              {children}
+              <div className="animate-fade-in">
+                {children}
+              </div>
             </ErrorBoundary>
           </main>
         </div>
+        <FloatingActionMenu />
       </body>
     </html>
   );

@@ -193,67 +193,52 @@ function SuppliersContent() {
             <div className="section-line" />
           </div>
 
-          <div style={{ overflowX: "auto", maxHeight: "650px", overflowY: "auto" }}>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Vendor</th>
-                  <th>Tier</th>
-                  <th>ESG Grade</th>
-                  <th>Emissions (kg)</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
+          <div style={{ maxHeight: "750px", overflowY: "auto" }} className="custom-scrollbar pr-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {filteredSuppliers.map((s) => {
                   const esg = getEsgRating(s);
                   const isSelected = selectedSupplier?.id === s.id;
 
                   return (
-                    <tr
+                    <div
                       key={s.id}
                       onClick={() => setSelectedSupplier(s)}
-                      style={{
-                        cursor: "pointer",
-                        background: isSelected ? "rgba(16, 185, 129, 0.08)" : undefined,
-                      }}
+                      className={`p-4 rounded-2xl border cursor-pointer transition-all ${
+                        isSelected
+                          ? "bg-emerald-900/20 border-emerald-500/50 shadow-[0_0_20px_rgba(16,185,129,0.15)] scale-[1.02]"
+                          : "bg-black/40 border-white/10 hover:border-white/30 hover:bg-white/[0.04]"
+                      }`}
                     >
-                      <td>
-                        <div style={{ fontWeight: 600, color: "var(--text-primary)" }}>
-                          {s.supplier_name}
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="truncate pr-2">
+                          <div className="font-bold text-white text-base truncate mb-1">{s.supplier_name}</div>
+                          <div className="text-xs text-white/50 truncate flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+                            {s.material_type} • {s.region}
+                          </div>
                         </div>
-                        <div style={{ fontSize: "0.75rem", color: "var(--text-tertiary)" }}>
-                          {s.material_type} • {s.region}
+                        <span className={`badge ${esg.badge} flex-shrink-0 shadow-lg`}>{esg.grade}</span>
+                      </div>
+                      
+                      {/* Visual intensity bar */}
+                      <div className="w-full h-1.5 bg-white/5 rounded-full mb-3 overflow-hidden">
+                        <div 
+                          className={`h-full rounded-full ${esg.grade === 'A+' || esg.grade === 'A' ? 'bg-emerald-400' : esg.grade === 'B' ? 'bg-amber-400' : 'bg-red-400'}`} 
+                          style={{ width: `${Math.min(100, Math.max(10, ((s.total_emissions || 0) / 100000) * 100))}%` }} 
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between text-xs pt-1">
+                        <span className="font-mono text-white/50 px-2 py-0.5 rounded bg-white/5">{s.tier}</span>
+                        <div className="flex items-baseline gap-1">
+                          <span className="font-bold text-white text-sm">{(s.total_emissions || 0).toLocaleString()}</span>
+                          <span className="text-white/40">kg</span>
                         </div>
-                      </td>
-                      <td>
-                        <span className="badge badge-info">{s.tier}</span>
-                      </td>
-                      <td>
-                        <span className={`badge ${esg.badge}`}>
-                          {esg.grade}
-                        </span>
-                      </td>
-                      <td style={{ fontWeight: 600 }}>
-                        {s.total_emissions?.toLocaleString()}
-                      </td>
-                      <td>
-                        <button
-                          className="btn btn-sm btn-secondary"
-                          style={{ padding: "4px 10px", fontSize: "0.6875rem" }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedSupplier(s);
-                          }}
-                        >
-                          Profile
-                        </button>
-                      </td>
-                    </tr>
+                      </div>
+                    </div>
                   );
                 })}
-              </tbody>
-            </table>
+            </div>
           </div>
         </GlassCard>
 
