@@ -56,7 +56,7 @@ export default function TradingTerminal({ initialEmissions }: TradingTerminalPro
   return (
     <div className="grid lg:grid-cols-12 gap-6">
       {/* LEFT: Order Execution (7 cols) */}
-      <GlassCard className="lg:col-span-7 p-6 border-cyan-500/30 flex flex-col justify-between">
+      <GlassCard variant="holo" className="lg:col-span-7 p-6 border-cyan-500/30 flex flex-col justify-between">
         <div>
           <div className="flex items-center gap-2 mb-6 text-cyan-400 font-mono text-sm uppercase tracking-wider font-bold">
             <Terminal className="w-4 h-4" />
@@ -138,7 +138,7 @@ export default function TradingTerminal({ initialEmissions }: TradingTerminalPro
       {/* RIGHT: Portfolio & Order Book (5 cols) */}
       <div className="lg:col-span-5 space-y-6 flex flex-col">
         {/* Net Zero Tracker */}
-        <GlassCard className="p-6 border-emerald-500/30 bg-emerald-950/20 relative overflow-hidden flex-shrink-0">
+        <GlassCard variant="holo" className="p-6 border-emerald-500/30 bg-emerald-950/20 relative overflow-hidden flex-shrink-0">
           <div className="absolute right-0 top-0 w-32 h-32 bg-emerald-500/10 blur-3xl rounded-full" />
           
           <div className="flex items-center gap-2 mb-4 text-emerald-400 font-mono text-sm uppercase tracking-wider font-bold">

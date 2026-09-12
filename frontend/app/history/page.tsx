@@ -466,6 +466,7 @@ export default function HistoryTimelinePage() {
 
                 {/* Main Glass Card */}
                 <GlassCard
+                  variant="holo"
                   className={`flex-1 p-5 sm:p-6 transition-all border ${
                     isSelected
                       ? "border-cyan-400/60 shadow-[0_0_25px_rgba(34,211,238,0.2)] bg-cyan-950/20"

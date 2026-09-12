@@ -123,9 +123,12 @@ export default function AnomalyTable({ suppliers }: Props) {
                   </div>
                 </td>
                 <td>
-                  <span className="badge badge-danger">
-                    <AlertTriangle size={10} /> Anomaly
-                  </span>
+                  <div className="relative inline-flex items-center justify-center">
+                    <div className="absolute inset-0 rounded-full bg-red-500/50 animate-ping opacity-75" />
+                    <span className="badge badge-danger relative z-10 shadow-[0_0_15px_rgba(239,68,68,0.5)] border border-red-500/50 font-bold tracking-wide px-2.5 py-1">
+                      <AlertTriangle size={10} /> Anomaly
+                    </span>
+                  </div>
                 </td>
               </tr>
             ))}

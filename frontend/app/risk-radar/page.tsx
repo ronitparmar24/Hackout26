@@ -77,8 +77,12 @@ function RiskRadarContent() {
   ) || [];
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 pb-32 relative overflow-hidden">
+      {/* Floating Orbs Background */}
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-red-500/10 rounded-full blur-[120px] pointer-events-none mix-blend-screen animate-pulse" />
+      <div className="absolute bottom-1/4 right-1/4 w-[600px] h-[600px] bg-cyan-500/5 rounded-full blur-[150px] pointer-events-none mix-blend-screen animate-[pulse_8s_ease-in-out_infinite]" />
+      
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-8 relative z-10">
         <div>
           <h1 className="text-3xl font-bold font-heading text-white tracking-tight flex items-center gap-3">
             <Radar className="w-8 h-8 text-red-500 animate-[spin_4s_linear_infinite]" />

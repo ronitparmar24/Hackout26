@@ -49,7 +49,11 @@ function WaterfallContent() {
   const t1Pct = (tierMap["Tier 1"] / total) * 100 || 0;
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-12">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 pb-32 relative overflow-hidden">
+      {/* Floating Orbs Background */}
+      <div className="absolute top-20 left-10 w-96 h-96 bg-cyan-500/10 rounded-full blur-[100px] pointer-events-none mix-blend-screen animate-pulse" />
+      <div className="absolute bottom-20 right-10 w-[500px] h-[500px] bg-emerald-500/10 rounded-full blur-[120px] pointer-events-none mix-blend-screen animate-[pulse_6s_ease-in-out_infinite]" />
+
       <div className="text-center mb-12">
         <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-cyan-500/10 mb-4">
           <Network className="w-8 h-8 text-cyan-400" />

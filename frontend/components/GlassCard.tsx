@@ -5,7 +5,7 @@ import React from "react";
 interface GlassCardProps {
   children: React.ReactNode;
   className?: string;
-  variant?: "default" | "strong" | "heavy" | "interactive" | "subtle" | "glow" | "danger";
+  variant?: "default" | "strong" | "heavy" | "interactive" | "subtle" | "glow" | "danger" | "holo";
   glowColor?: "emerald" | "teal" | "amber" | "blue" | "purple" | "red" | "ai";
   hover?: boolean;
   onClick?: () => void;
@@ -32,6 +32,8 @@ export default function GlassCard({
       ? "glass-interactive"
       : variant === "danger"
       ? "glass-danger"
+      : variant === "holo"
+      ? "glass-holo"
       : "glass-card";
 
   const glowClass = glowColor ? `glow-${glowColor}` : "";

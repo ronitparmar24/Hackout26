@@ -17,10 +17,11 @@ import {
 import GlassCard from "@/components/GlassCard";
 import AnimatedCounter from "@/components/AnimatedCounter";
 import StatusBadge from "@/components/StatusBadge";
-import SkeletonShimmer from "@/components/SkeletonShimmer";
+import TrendySkeleton from "@/components/TrendySkeleton";
 import Button from "@/components/Button";
 import AIChatWidget from "@/components/AIChatWidget";
 import AIExecutiveSummary from "@/components/AIExecutiveSummary";
+import TypewriterEffect from "@/components/TypewriterEffect";
 import EcoAuraCard from "@/components/EcoAuraCard";
 import ShareableFlexCard from "@/components/ShareableFlexCard";
 import SupplierMatchmakerModal, { type MatchmakerRecommendation } from "@/components/SupplierMatchmakerModal";
@@ -335,18 +336,24 @@ export default function RedesignedDashboardPage() {
   // Loading skeleton state
   if (loading) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-8">
-        <div className="flex justify-between items-center">
-          <SkeletonShimmer width={300} height={40} />
-          <SkeletonShimmer width={200} height={40} />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-8 animate-fade-in">
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <TrendySkeleton type="text" width={300} height={40} className="mb-2" />
+            <TrendySkeleton type="text" width={200} height={20} />
+          </div>
+          <TrendySkeleton type="text" width={150} height={40} />
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        
+        <TrendySkeleton type="card" height={100} className="mb-8" />
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {[1, 2, 3, 4].map((i) => (
-            <SkeletonShimmer key={i} height={130} />
+            <TrendySkeleton key={i} type="card" height={150} />
           ))}
         </div>
-        <SkeletonShimmer height={60} />
-        <SkeletonShimmer height={450} />
+        
+        <TrendySkeleton type="chart" height={450} />
       </div>
     );
   }
@@ -418,10 +425,14 @@ export default function RedesignedDashboardPage() {
       />
 
       {/* AI Executive Summary Widget */}
-      <div className="mb-8">
+      <div className="mb-4">
         <AIExecutiveSummary runId={runId} suppliers={data.suppliers} />
       </div>
 
+      {/* Generative AI Live System Analysis */}
+      <TypewriterEffect 
+        text={`Initializing Scope 3 telemetry... Analyzed ${data.total_suppliers} suppliers across global corridors. Isolated ${anomaliesCount} high-risk statistical anomalies. Machine learning models indicate a ${(potentialReductionPct).toFixed(1)}% potential reduction via strategic sourcing.`} 
+      />
 
       {/* ============================================================ */}
       {/* TOP KPI ROW: 4 SWIPEABLE / GRID GLASS CARDS WITH ANIMATED COUNTERS */}

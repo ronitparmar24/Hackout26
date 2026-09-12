@@ -4,6 +4,7 @@ import React, { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { getRun, listRuns, type RunResponse } from "@/lib/api";
 import AnimatedCounter from "@/components/AnimatedCounter";
+import GlitchText from "@/components/GlitchText";
 import { Maximize, Presentation, Activity, Users, ShieldAlert } from "lucide-react";
 
 function BoardroomContent() {
@@ -40,21 +41,23 @@ function BoardroomContent() {
   const totalSuppliers = data.total_suppliers;
 
   return (
-    <div className="fixed inset-0 z-[100] bg-black text-white flex flex-col overflow-hidden animate-fade-in">
+    <div className="relative min-h-[85vh] bg-[#0A0E14] text-white flex flex-col rounded-3xl overflow-hidden animate-fade-in border border-white/10 shadow-2xl mt-4 max-w-7xl mx-auto">
       {/* Abstract Background */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-cyan-950/40 via-black to-black z-0 pointer-events-none" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-cyan-950/20 via-[#0A0E14] to-[#0A0E14] z-0 pointer-events-none" />
       
       {/* Header */}
-      <div className="relative z-10 flex justify-between items-center px-12 py-8 border-b border-white/5">
+      <div className="relative z-10 flex justify-between items-center px-8 py-6 border-b border-white/5">
         <div className="flex items-center gap-4">
-          <Presentation className="w-8 h-8 text-cyan-400" />
-          <h1 className="text-2xl font-mono tracking-widest uppercase text-white/50">C-Suite Executive Briefing</h1>
+          <Presentation className="w-6 h-6 text-cyan-400" />
+          <h1 className="text-xl font-mono tracking-widest uppercase text-white/70">
+            <GlitchText text="C-Suite Executive Briefing" speed={40} />
+          </h1>
         </div>
         <div className="flex items-center gap-6 font-mono text-sm">
           <span className="text-cyan-400 animate-pulse">● LIVE TELEMETRY</span>
           <span className="text-white/40">{new Date().toLocaleDateString()}</span>
-          <button onClick={() => window.history.back()} className="text-white/50 hover:text-white flex items-center gap-2 transition-colors">
-            <Maximize className="w-4 h-4" /> Exit
+          <button onClick={() => window.history.back()} className="text-white/50 hover:text-white flex items-center gap-1.5 transition-colors text-xs bg-white/5 px-3 py-1.5 rounded-lg border border-white/10">
+            <Maximize className="w-3.5 h-3.5" /> Exit Boardroom
           </button>
         </div>
       </div>
