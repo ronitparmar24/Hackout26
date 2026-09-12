@@ -1,11 +1,15 @@
-from app.ai.llm import generate_ai_response
+import logging
+from app.services.llm_client import ask_llm
+
+logger = logging.getLogger(__name__)
 
 
 def calculate_risk_score(
     supplier_data: dict, max_emissions: float = 1000000.0
 ) -> dict:
     """
-    Computes 0-100 Supply Chain Risk Score and generates a 1-sentence LLM justification.
+    Computes 0-100 Supply Chain Risk Score and generates a 1-sentence LLM justification
+    using ask_llm with a short, tightly-scoped prompt per supplier.
     Formula based on:
     - Anomaly flag (+35)
     - Cluster label (+0 to +20)
@@ -40,24 +44,34 @@ def calculate_risk_score(
 
     final_score = round(min(100.0, max(0.0, score)), 1)
 
-    # Generate 1-sentence LLM justification
-    prompt = (
-        f"Generate exactly ONE concise sentence explaining the risk reason for this supplier:\n"
+    # Short, tightly-scoped prompt per supplier for risk reasoning
+    system_prompt = (
+        "You are an expert supply chain carbon auditor. "
+        "Provide exactly ONE concise, factual sentence justifying the risk score for this supplier."
+    )
+    user_prompt = (
         f"Supplier: {supplier_data.get('supplier_name')}\n"
         f"Risk Score: {final_score}/100\n"
         f"Anomaly Outlier: {is_anomaly}\n"
-        f"Cluster Cohort: {cluster}\n"
+        f"Cohort: {cluster}\n"
         f"Emissions: {tot_em:,.1f} kg CO2e\n"
+        f"Material: {supplier_data.get('material_type')}, Transport: {supplier_data.get('transport_mode')}\n"
         f"Estimated Data: energy={energy_est}, transit={trans_est}\n"
-        f"Material: {supplier_data.get('material_type')}, Mode: {supplier_data.get('transport_mode')}\n\n"
-        f"Sentence:"
+        "Explain the primary risk factor in exactly one sentence:"
     )
 
     try:
-        justification = generate_ai_response(prompt=prompt)
-        # Ensure it is a clean single sentence
-        justification = justification.strip().split("\n")[0].strip('"\'. ') + "."
-    except Exception:
+        raw_reasoning = ask_llm(system_prompt=system_prompt, user_prompt=user_prompt, max_tokens=100)
+        if raw_reasoning and "AI insight temporarily unavailable" not in raw_reasoning:
+            # Clean up to ensure single sentence
+            justification = raw_reasoning.strip().split("\n")[0].strip('"\'. ') + "."
+        else:
+            justification = None
+    except Exception as e:
+        logger.warning(f"Error calling ask_llm in calculate_risk_score: {e}")
+        justification = None
+
+    if not justification:
         if is_anomaly:
             justification = f"Flagged as high risk (Score {final_score}) due to statistical carbon divergence and high emissions in {supplier_data.get('material_type', 'materials')}."
         elif energy_est or trans_est:

@@ -1,56 +1,22 @@
 import os
-import json
 import logging
-import requests
+from app.services.llm_client import ask_llm
 
 logger = logging.getLogger(__name__)
-
-LLM_API_KEY = (
-    os.getenv("LLM_API_KEY")
-    or os.getenv("OPENAI_API_KEY")
-    or os.getenv("GEMINI_API_KEY")
-    or os.getenv("GROQ_API_KEY")
-)
-LLM_BASE_URL = os.getenv("LLM_BASE_URL", "https://api.openai.com/v1")
-LLM_MODEL = os.getenv("LLM_MODEL", "gpt-4o-mini")
 
 
 def generate_ai_response(prompt: str, system_prompt: str = "") -> str:
     """
-    Calls configured LLM provider with strict try/except error handling.
-    On failure or absent API key, falls back gracefully to deterministic grounded answers.
+    Calls Groq LLM via centralized ask_llm client with strict error handling.
+    On failure, falls back gracefully to deterministic grounded answers.
     Never raises an uncaught exception or returns a 500 error.
     """
-    if LLM_API_KEY:
-        try:
-            headers = {
-                "Authorization": f"Bearer {LLM_API_KEY}",
-                "Content-Type": "application/json",
-            }
-            messages = []
-            if system_prompt:
-                messages.append({"role": "system", "content": system_prompt})
-            messages.append({"role": "user", "content": prompt})
-
-            payload = {
-                "model": LLM_MODEL,
-                "messages": messages,
-                "temperature": 0.2,  # Low temperature for strict factual grounding
-                "max_tokens": 800,
-            }
-
-            url = f"{LLM_BASE_URL.rstrip('/')}/chat/completions"
-            response = requests.post(url, headers=headers, json=payload, timeout=12)
-
-            if response.status_code == 200:
-                data = response.json()
-                content = data["choices"][0]["message"]["content"].strip()
-                if content:
-                    return content
-            else:
-                logger.warning(f"LLM API returned {response.status_code}: {response.text}")
-        except Exception as e:
-            logger.warning(f"LLM API request failed: {e}. Falling back to analytical engine.")
+    try:
+        content = ask_llm(system_prompt=system_prompt, user_prompt=prompt, max_tokens=800)
+        if content and "AI insight temporarily unavailable" not in content:
+            return content
+    except Exception as e:
+        logger.warning(f"Groq LLM call via ask_llm failed: {e}. Falling back to analytical engine.")
 
     # Graceful, data-grounded fallback
     return fallback_generator(prompt, system_prompt)
