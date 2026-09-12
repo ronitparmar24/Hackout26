@@ -9,15 +9,42 @@ from reportlab.lib.units import mm
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 
+from app.core.auth import get_current_user, get_optional_user, verify_supabase_token, AuthenticatedUser, DEMO_GUEST_USER_ID
+from typing import Optional
+from fastapi import Query, Header
+
 router = APIRouter()
 
 
+def _authenticate_export(authorization: Optional[str], token: Optional[str]) -> AuthenticatedUser:
+    raw_token = token or (authorization.split()[1] if authorization and "bearer" in authorization.lower() else None)
+    if not raw_token:
+        # Default to guest demo in case of direct browser links if unauthenticated
+        raw_token = "demo-guest-token"
+    payload = verify_supabase_token(raw_token)
+    return AuthenticatedUser(
+        user_id=str(payload.get("sub") or payload.get("user_id") or DEMO_GUEST_USER_ID),
+        email=payload.get("email"),
+        role=payload.get("role", "authenticated"),
+        is_guest=payload.get("is_guest", False),
+    )
+
+
 @router.get("/api/export/csv/{run_id}")
-def export_csv(run_id: str, db=Depends(get_db)):
-    # Verify run exists
-    run = db.runs.find_one({"id": run_id})
+def export_csv(
+    run_id: str,
+    db=Depends(get_db),
+    token: Optional[str] = Query(None),
+    authorization: Optional[str] = Header(None),
+):
+    current_user = _authenticate_export(authorization, token)
+    run = db.runs.find_one({"$or": [{"id": run_id}, {"run_id": run_id}]})
     if not run:
         raise HTTPException(404, "Run not found")
+
+    run_owner = run.get("user_id")
+    if run_owner and run_owner not in (current_user.user_id, DEMO_GUEST_USER_ID) and not current_user.is_guest:
+        raise HTTPException(403, "Access denied: this report belongs to another organization.")
 
     rows = list(db.suppliers.find({"run_id": run_id}, {"_id": 0}).sort("total_emissions", -1))
 
@@ -47,10 +74,20 @@ def export_csv(run_id: str, db=Depends(get_db)):
 
 
 @router.get("/api/export/pdf/{run_id}")
-def export_pdf(run_id: str, db=Depends(get_db)):
-    run = db.runs.find_one({"id": run_id})
+def export_pdf(
+    run_id: str,
+    db=Depends(get_db),
+    token: Optional[str] = Query(None),
+    authorization: Optional[str] = Header(None),
+):
+    current_user = _authenticate_export(authorization, token)
+    run = db.runs.find_one({"$or": [{"id": run_id}, {"run_id": run_id}]})
     if not run:
         raise HTTPException(404, "Run not found")
+
+    run_owner = run.get("user_id")
+    if run_owner and run_owner not in (current_user.user_id, DEMO_GUEST_USER_ID) and not current_user.is_guest:
+        raise HTTPException(403, "Access denied: this report belongs to another organization.")
 
     suppliers = list(db.suppliers.find({"run_id": run_id}, {"_id": 0}).sort("total_emissions", -1))
     anomalies = [s for s in suppliers if s.get("is_anomaly")]

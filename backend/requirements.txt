@@ -14,3 +14,4 @@ pymongo
 dnspython
 openai
 google-genai
+pyjwt

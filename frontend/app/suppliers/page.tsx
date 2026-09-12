@@ -37,13 +37,13 @@ function SuppliersContent() {
         if (!activeRunId) {
           const runs = await listRuns();
           if (runs && runs.length > 0) {
-            activeRunId = runs[0].run_id;
+            activeRunId = runs[0].run_id || (runs[0] as any).id;
           }
         }
         if (activeRunId) {
           const result = await getRun(activeRunId);
           setData(result);
-          if (result.suppliers && result.suppliers.length > 0) {
+          if (result && result.suppliers && result.suppliers.length > 0) {
             setSelectedSupplier(result.suppliers[0]);
           }
         }
@@ -346,10 +346,49 @@ function SuppliersContent() {
               </div>
 
               {alternatives.length === 0 ? (
-                <div style={{ padding: "20px", textAlign: "center", color: "var(--text-tertiary)", fontSize: "0.875rem" }}>
-                  <Leaf size={24} style={{ color: "var(--emerald-400)", margin: "0 auto 8px" }} />
-                  This supplier is already among the cleanest vendors in its peer group!
-                </div>
+                (() => {
+                  const residualTons = Number(((selectedSupplier.total_emissions || 0) / 1000).toFixed(1));
+                  const minCost = Math.round(residualTons * 15);
+                  const maxCost = Math.round(residualTons * 20);
+
+                  return (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "14px", marginTop: "6px" }}>
+                      <div style={{ padding: "12px", textAlign: "center", color: "var(--text-tertiary)", fontSize: "0.8125rem" }}>
+                        <Leaf size={22} style={{ color: "var(--emerald-400)", margin: "0 auto 6px" }} />
+                        This supplier is among the lowest-carbon vendors in its peer group. No lower-carbon alternative currently exists in the dataset.
+                      </div>
+
+                      {/* Suggested Offsets Glass Card */}
+                      <div
+                        className="glass-card"
+                        style={{
+                          padding: "16px",
+                          background: "rgba(34, 211, 238, 0.05)",
+                          border: "1px solid rgba(34, 211, 238, 0.25)",
+                          borderRadius: "14px",
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                            <span style={{ fontSize: "0.9375rem" }}>🌱</span>
+                            <span style={{ fontWeight: 700, fontSize: "0.8125rem", color: "var(--cyan-300)" }}>
+                              Suggested Offsets
+                            </span>
+                          </div>
+                          <span className="badge badge-info" style={{ fontSize: "0.625rem", padding: "2px 8px" }}>
+                            Voluntary Market Rate
+                          </span>
+                        </div>
+                        <div style={{ fontSize: "1rem", fontWeight: 700, color: "#ffffff", marginBottom: "4px" }}>
+                          Residual: {residualTons.toLocaleString()} tCO₂e — Est. offset cost: ${minCost.toLocaleString()}-{maxCost.toLocaleString()}/year
+                        </div>
+                        <p style={{ fontSize: "0.6875rem", color: "var(--text-tertiary)", margin: 0, lineHeight: 1.4 }}>
+                          Estimated based on voluntary carbon market reference rates ($15–20/tCO₂e illustrative benchmark; not a live market price). Recommended for neutralizing unavoidable Scope 3 residual emissions under SBTi Net-Zero guidelines.
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })()
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "12px" }}>
                   {alternatives.map((alt) => {

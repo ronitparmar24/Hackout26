@@ -15,7 +15,12 @@ import {
   History,
   BookOpen,
   Sliders,
+  User,
+  LogOut,
+  Settings as SettingsIcon,
+  ChevronDown,
 } from "lucide-react";
+import { getUserSession, clearUserSession } from "@/lib/supabase";
 
 export default function TopBar() {
   const pathname = usePathname();
@@ -90,6 +95,9 @@ export default function TopBar() {
             <span>CSRD Audit</span>
           </Link>
 
+          {/* User Auth Profile Menu */}
+          <UserAuthMenu />
+
           {/* Mobile Hamburger Toggle Button */}
           <button
             type="button"
@@ -163,5 +171,91 @@ export default function TopBar() {
         </div>
       )}
     </header>
+  );
+}
+
+function UserAuthMenu() {
+  const [user, setUser] = useState<any>(null);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    getUserSession().then((session) => setUser(session));
+  }, []);
+
+  const handleLogout = () => {
+    clearUserSession();
+    window.location.href = "/login";
+  };
+
+  if (!user) {
+    return (
+      <Link
+        href="/login"
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-xs font-heading font-medium text-cyan-300 hover:text-cyan-200 border border-cyan-400/30 transition-all"
+      >
+        <User className="w-3.5 h-3.5" />
+        <span>Sign In</span>
+      </Link>
+    );
+  }
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setDropdownOpen(!dropdownOpen)}
+        className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-xs font-heading text-white/90 hover:text-white transition-colors"
+      >
+        <div className="w-5 h-5 rounded-lg bg-gradient-to-tr from-cyan-400 to-emerald-400 flex items-center justify-center text-black font-bold text-[10px]">
+          {user.name ? user.name.charAt(0).toUpperCase() : "U"}
+        </div>
+        <span className="hidden sm:inline-block max-w-[100px] truncate">
+          {user.isGuest ? "Guest Demo" : user.name || user.email}
+        </span>
+        <ChevronDown className="w-3 h-3 text-white/40" />
+      </button>
+
+      {dropdownOpen && (
+        <>
+          <div
+            className="fixed inset-0 z-40"
+            onClick={() => setDropdownOpen(false)}
+          />
+          <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-[#0a0f1d] border border-white/15 p-2 shadow-2xl z-50 animate-fade-in-up">
+            <div className="px-3 py-2 border-b border-white/10 mb-1">
+              <div className="text-xs font-bold text-white truncate font-heading">
+                {user.name || "Authenticated User"}
+              </div>
+              <div className="text-[11px] text-white/50 truncate font-mono">
+                {user.email || "guest.demo@carbonsense.io"}
+              </div>
+              {user.isGuest && (
+                <span className="inline-block mt-1 px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-300 font-mono text-[9px] border border-cyan-400/20">
+                  Guest Demo Mode
+                </span>
+              )}
+            </div>
+
+            <Link
+              href="/settings"
+              onClick={() => setDropdownOpen(false)}
+              className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-white/80 hover:text-white hover:bg-white/[0.06] transition-colors"
+            >
+              <SettingsIcon className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Company Settings</span>
+            </Link>
+
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors mt-1"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Sign Out</span>
+            </button>
+          </div>
+        </>
+      )}
+    </div>
   );
 }

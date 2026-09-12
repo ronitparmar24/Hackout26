@@ -33,16 +33,18 @@ export default function RecommendationPanel({ suppliers }: Props) {
       a.total_emissions < b.total_emissions ? a : b
     );
 
-    const reductionPct =
-      ((anomaly.total_emissions - best.total_emissions) /
-        anomaly.total_emissions) *
-      100;
+    const anomEmissions = Math.max(1, Number(anomaly.total_emissions || 0));
+    const bestEmissions = Math.max(0, Number(best.total_emissions || 0));
+
+    const reductionPct = Math.round(
+      ((anomEmissions - bestEmissions) / anomEmissions) * 100
+    );
 
     if (reductionPct > 0) {
       recommendations.push({
         from_supplier: anomaly.supplier_name,
         to_supplier: best.supplier_name,
-        similarity_score: Math.max(0.5, 1 - Math.abs(anomaly.total_emissions - best.total_emissions) / anomaly.total_emissions),
+        similarity_score: Math.max(0.5, Math.min(1.0, 1 - Math.abs(anomEmissions - bestEmissions) / anomEmissions)),
         emissions_reduction_pct: reductionPct,
       });
     }

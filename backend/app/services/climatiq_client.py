@@ -142,40 +142,34 @@ def _call_estimate(activity_id: str, parameters: Dict[str, Any], timeout: float 
 
 def get_energy_emissions(kwh: float, region: str = "India") -> EmissionResult:
     """
-    Calculates electricity emissions using Climatiq API.
+    Calculates electricity emissions using Climatiq API with unit rate caching.
     Returns EmissionResult (tCO2e) with audit source metadata.
     """
     if kwh is None or kwh <= 0:
         return EmissionResult(0.0, 0.0, "Climatiq / DEFRA 2024", "electricity-zero")
 
-    cache_key = f"energy_{region}_{round(kwh, 2)}"
-    if cache_key in _CACHE:
-        return _CACHE[cache_key]
-
-    # Map region code
     reg_clean = region.strip() if region else "India"
-    activity_id = ACTIVITY_MAP["energy"].get(reg_clean, ACTIVITY_MAP["energy"]["Global"])
+    rate_key = f"unit_rate_energy_{reg_clean}"
 
-    # 1. Attempt Climatiq Core Estimate
-    data = _call_estimate(activity_id, {"energy": float(kwh), "energy_unit": "kWh"})
-    if data and "co2e" in data:
-        unit = data.get("co2e_unit", "kg").lower()
-        raw_val = float(data["co2e"])
-        kg_val = raw_val if unit == "kg" else raw_val * 1000.0 if unit == "t" else raw_val / 1000.0
-        tco2e = kg_val / 1000.0
-        source_name = data.get("emission_factor", {}).get("source", "DEFRA")
-        year = data.get("emission_factor", {}).get("year", "2024")
-        res = EmissionResult(tco2e, kg_val, f"Climatiq / {source_name} {year}", activity_id)
-        _CACHE[cache_key] = res
-        return res
+    if rate_key not in _CACHE:
+        activity_id = ACTIVITY_MAP["energy"].get(reg_clean, ACTIVITY_MAP["energy"]["Global"])
+        data = _call_estimate(activity_id, {"energy": 1000.0, "energy_unit": "kWh"})
+        if data and "co2e" in data:
+            unit = data.get("co2e_unit", "kg").lower()
+            raw_val = float(data["co2e"])
+            kg_per_1000 = raw_val if unit == "kg" else raw_val * 1000.0 if unit == "t" else raw_val / 1000.0
+            rate_per_kwh = kg_per_1000 / 1000.0
+            source_name = data.get("emission_factor", {}).get("source", "DEFRA")
+            year = data.get("emission_factor", {}).get("year", "2024")
+            _CACHE[rate_key] = (rate_per_kwh, f"Climatiq / {source_name} {year}", activity_id)
+        else:
+            fallback_rate = FALLBACK_ENERGY.get(reg_clean, FALLBACK_ENERGY["India"])
+            _CACHE[rate_key] = (fallback_rate, "DEFRA 2024 (Local Fallback)", "defra-energy-2024")
 
-    # 2. Graceful fallback: local verified table
-    fallback_rate = FALLBACK_ENERGY.get(reg_clean, FALLBACK_ENERGY["India"])
-    kg_val = float(kwh) * fallback_rate
+    rate_per_kwh, source, activity_id = _CACHE[rate_key]
+    kg_val = float(kwh) * rate_per_kwh
     tco2e = kg_val / 1000.0
-    res = EmissionResult(tco2e, kg_val, "DEFRA 2024 (Local Fallback)", "defra-energy-2024")
-    _CACHE[cache_key] = res
-    return res
+    return EmissionResult(tco2e, kg_val, source, activity_id)
 
 
 def get_freight_emissions(
@@ -193,101 +187,68 @@ def get_freight_emissions(
         return EmissionResult(0.0, 0.0, "Climatiq / DEFRA 2024", "freight-zero")
 
     mode_clean = transport_mode.capitalize() if transport_mode else "Road"
-    cache_key = f"freight_{mode_clean}_{round(weight_kg, 1)}_{round(distance_km, 1)}"
-    if cache_key in _CACHE:
-        return _CACHE[cache_key]
-
-    activity_id = ACTIVITY_MAP["freight"].get(mode_clean, ACTIVITY_MAP["freight"]["Road"])
     weight_t = float(weight_kg) / 1000.0
+    rate_key = f"unit_rate_freight_{mode_clean}"
 
-    # 1. Attempt Climatiq Core Estimate
-    data = _call_estimate(
-        activity_id,
-        {
-            "weight": weight_t,
-            "weight_unit": "t",
-            "distance": float(distance_km),
-            "distance_unit": "km"
-        }
-    )
-    if data and "co2e" in data:
-        unit = data.get("co2e_unit", "kg").lower()
-        raw_val = float(data["co2e"])
-        kg_val = raw_val if unit == "kg" else raw_val * 1000.0 if unit == "t" else raw_val / 1000.0
-        tco2e = kg_val / 1000.0
-        source_name = data.get("emission_factor", {}).get("source", "DEFRA")
-        year = data.get("emission_factor", {}).get("year", "2024")
-        res = EmissionResult(tco2e, kg_val, f"Climatiq / {source_name} {year}", activity_id)
-        _CACHE[cache_key] = res
-        return res
+    if rate_key not in _CACHE:
+        activity_id = ACTIVITY_MAP["freight"].get(mode_clean, ACTIVITY_MAP["freight"]["Road"])
+        data = _call_estimate(
+            activity_id,
+            {
+                "weight": 1.0,
+                "weight_unit": "t",
+                "distance": 1.0,
+                "distance_unit": "km"
+            }
+        )
+        if data and "co2e" in data:
+            unit = data.get("co2e_unit", "kg").lower()
+            raw_val = float(data["co2e"])
+            rate_per_tkm = raw_val if unit == "kg" else raw_val * 1000.0 if unit == "t" else raw_val / 1000.0
+            source_name = data.get("emission_factor", {}).get("source", "DEFRA")
+            year = data.get("emission_factor", {}).get("year", "2024")
+            _CACHE[rate_key] = (rate_per_tkm, f"Climatiq / {source_name} {year}", activity_id)
+        else:
+            fallback_rate = FALLBACK_TRANSPORT.get(mode_clean, FALLBACK_TRANSPORT["Road"])
+            _CACHE[rate_key] = (fallback_rate, "DEFRA 2024 (Local Fallback)", "defra-freight-2024")
 
-    # 2. Graceful fallback: local verified freight table
-    rate_per_tkm = FALLBACK_TRANSPORT.get(mode_clean, FALLBACK_TRANSPORT["Road"])
+    rate_per_tkm, source, activity_id = _CACHE[rate_key]
     kg_val = weight_t * float(distance_km) * rate_per_tkm
     tco2e = kg_val / 1000.0
-    res = EmissionResult(tco2e, kg_val, "DEFRA 2024 (Local Fallback)", "defra-freight-2024")
-    _CACHE[cache_key] = res
-    return res
+    return EmissionResult(tco2e, kg_val, source, activity_id)
 
 
 def get_material_emissions(material_type: str, quantity_kg: float) -> EmissionResult:
     """
     Finds the closest matching material emission factor via Climatiq Search / Catalog,
-    then executes an Estimate calculation.
+    then executes an Estimate calculation with unit rate caching.
     Returns EmissionResult (tCO2e) with audit source metadata.
     """
     if quantity_kg is None or quantity_kg <= 0:
         return EmissionResult(0.0, 0.0, "Climatiq / DEFRA 2024", "material-zero")
 
     mat_clean = material_type.capitalize() if material_type else "Steel"
-    cache_key = f"material_{mat_clean}_{round(quantity_kg, 1)}"
-    if cache_key in _CACHE:
-        return _CACHE[cache_key]
-
-    activity_id = ACTIVITY_MAP["material"].get(mat_clean, ACTIVITY_MAP["material"]["Steel"])
     weight_t = float(quantity_kg) / 1000.0
+    rate_key = f"unit_rate_material_{mat_clean}"
 
-    # 1. Attempt Climatiq Core Estimate
-    data = _call_estimate(activity_id, {"weight": float(quantity_kg), "weight_unit": "kg"})
-    if not data:
-        # Try search endpoint if activity_id did not respond
-        search_key = f"search_mat_{mat_clean}"
-        if search_key not in _CACHE:
-            try:
-                s_resp = requests.get(
-                    f"{CLIMATIQ_BASE_URL}/search",
-                    headers=_get_headers(),
-                    params={"query": mat_clean.lower(), "data_version": DATA_VERSION, "results_per_page": 1},
-                    timeout=4.0
-                )
-                if s_resp.status_code == 200:
-                    results = s_resp.json().get("results", [])
-                    if results:
-                        _CACHE[search_key] = results[0].get("activity_id")
-            except Exception:
-                pass
-        dynamic_id = _CACHE.get(search_key)
-        if dynamic_id:
-            data = _call_estimate(dynamic_id, {"weight": float(quantity_kg), "weight_unit": "kg"})
+    if rate_key not in _CACHE:
+        activity_id = ACTIVITY_MAP["material"].get(mat_clean, ACTIVITY_MAP["material"]["Steel"])
+        data = _call_estimate(activity_id, {"weight": 1000.0, "weight_unit": "kg"})
+        if data and "co2e" in data:
+            unit = data.get("co2e_unit", "kg").lower()
+            raw_val = float(data["co2e"])
+            rate_per_tonne = raw_val if unit == "kg" else raw_val * 1000.0 if unit == "t" else raw_val / 1000.0
+            source_name = data.get("emission_factor", {}).get("source", "DEFRA")
+            year = data.get("emission_factor", {}).get("year", "2024")
+            _CACHE[rate_key] = (rate_per_tonne, f"Climatiq / {source_name} {year}", activity_id)
+        else:
+            factor_per_tonne = FALLBACK_MATERIALS.get(mat_clean, FALLBACK_MATERIALS["Steel"])
+            _CACHE[rate_key] = (factor_per_tonne, "DEFRA 2024 (Local Fallback)", "defra-material-2024")
 
-    if data and "co2e" in data:
-        unit = data.get("co2e_unit", "kg").lower()
-        raw_val = float(data["co2e"])
-        kg_val = raw_val if unit == "kg" else raw_val * 1000.0 if unit == "t" else raw_val / 1000.0
-        tco2e = kg_val / 1000.0
-        source_name = data.get("emission_factor", {}).get("source", "DEFRA")
-        year = data.get("emission_factor", {}).get("year", "2024")
-        res = EmissionResult(tco2e, kg_val, f"Climatiq / {source_name} {year}", activity_id)
-        _CACHE[cache_key] = res
-        return res
-
-    # 2. Graceful fallback: local verified material table
-    factor_per_tonne = FALLBACK_MATERIALS.get(mat_clean, FALLBACK_MATERIALS["Steel"])
-    kg_val = weight_t * factor_per_tonne
+    rate_per_tonne, source, activity_id = _CACHE[rate_key]
+    kg_val = weight_t * rate_per_tonne
     tco2e = kg_val / 1000.0
-    res = EmissionResult(tco2e, kg_val, "DEFRA 2024 (Local Fallback)", "defra-material-2024")
-    _CACHE[cache_key] = res
-    return res
+    return EmissionResult(tco2e, kg_val, source, activity_id)
 
 
 def calculate_climatiq_emissions(

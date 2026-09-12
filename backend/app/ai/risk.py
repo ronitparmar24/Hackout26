@@ -5,7 +5,7 @@ logger = logging.getLogger(__name__)
 
 
 def calculate_risk_score(
-    supplier_data: dict, max_emissions: float = 1000000.0
+    supplier_data: dict, max_emissions: float = 1000000.0, skip_llm: bool = False
 ) -> dict:
     """
     Computes 0-100 Supply Chain Risk Score and generates a 1-sentence LLM justification
@@ -44,32 +44,32 @@ def calculate_risk_score(
 
     final_score = round(min(100.0, max(0.0, score)), 1)
 
-    # Short, tightly-scoped prompt per supplier for risk reasoning
-    system_prompt = (
-        "You are an expert supply chain carbon auditor. "
-        "Provide exactly ONE concise, factual sentence justifying the risk score for this supplier."
-    )
-    user_prompt = (
-        f"Supplier: {supplier_data.get('supplier_name')}\n"
-        f"Risk Score: {final_score}/100\n"
-        f"Anomaly Outlier: {is_anomaly}\n"
-        f"Cohort: {cluster}\n"
-        f"Emissions: {tot_em:,.1f} kg CO2e\n"
-        f"Material: {supplier_data.get('material_type')}, Transport: {supplier_data.get('transport_mode')}\n"
-        f"Estimated Data: energy={energy_est}, transit={trans_est}\n"
-        "Explain the primary risk factor in exactly one sentence:"
-    )
+    justification = None
+    if not skip_llm:
+        # Short, tightly-scoped prompt per supplier for risk reasoning
+        system_prompt = (
+            "You are an expert supply chain carbon auditor. "
+            "Provide exactly ONE concise, factual sentence justifying the risk score for this supplier."
+        )
+        user_prompt = (
+            f"Supplier: {supplier_data.get('supplier_name')}\n"
+            f"Risk Score: {final_score}/100\n"
+            f"Anomaly Outlier: {is_anomaly}\n"
+            f"Cohort: {cluster}\n"
+            f"Emissions: {tot_em:,.1f} kg CO2e\n"
+            f"Material: {supplier_data.get('material_type')}, Transport: {supplier_data.get('transport_mode')}\n"
+            f"Estimated Data: energy={energy_est}, transit={trans_est}\n"
+            "Explain the primary risk factor in exactly one sentence:"
+        )
 
-    try:
-        raw_reasoning = ask_llm(system_prompt=system_prompt, user_prompt=user_prompt, max_tokens=100)
-        if raw_reasoning and "AI insight temporarily unavailable" not in raw_reasoning:
-            # Clean up to ensure single sentence
-            justification = raw_reasoning.strip().split("\n")[0].strip('"\'. ') + "."
-        else:
+        try:
+            raw_reasoning = ask_llm(system_prompt=system_prompt, user_prompt=user_prompt, max_tokens=100)
+            if raw_reasoning and "AI insight temporarily unavailable" not in raw_reasoning:
+                # Clean up to ensure single sentence
+                justification = raw_reasoning.strip().split("\n")[0].strip('"\'. ') + "."
+        except Exception as e:
+            logger.warning(f"Error calling ask_llm in calculate_risk_score: {e}")
             justification = None
-    except Exception as e:
-        logger.warning(f"Error calling ask_llm in calculate_risk_score: {e}")
-        justification = None
 
     if not justification:
         if is_anomaly:

@@ -34,6 +34,7 @@ import GradientBackground from "@/components/GradientBackground";
 import StatusBadge from "@/components/StatusBadge";
 import Button from "@/components/Button";
 import { uploadCSV } from "@/lib/api";
+import { setGuestDemoSession, getUserSession } from "@/lib/supabase";
 
 // Demo mini-chart data for the live preview card
 const previewBars = [
@@ -52,6 +53,9 @@ export default function MarketingLandingPage() {
   const handleLiveDemo = async () => {
     setIsStartingDemo(true);
     try {
+      // 0. Ensure authenticated session (Guest Demo mode)
+      setGuestDemoSession();
+
       // 1. Fetch demo_suppliers.csv
       const resp = await fetch("/demo_suppliers.csv");
       const csvText = await resp.text();

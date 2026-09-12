@@ -45,7 +45,7 @@ function SimulatorContent() {
         if (!activeRunId) {
           const runs = await listRuns();
           if (runs && runs.length > 0) {
-            activeRunId = runs[0].run_id;
+            activeRunId = runs[0].run_id || (runs[0] as any).id;
           }
         }
         if (activeRunId) {

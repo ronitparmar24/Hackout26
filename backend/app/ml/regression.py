@@ -19,46 +19,53 @@ def train_models(csv_path: str):
     
     features = ["tier", "region", "transport_mode", "material_type", "material_qty"]
     
-    X = df[features]
-    y_energy = df["energy_kwh"]
-    y_transport = df["transport_km"]
-    
     # Preprocessor
     categorical_features = ["tier", "region", "transport_mode", "material_type"]
     numeric_features = ["material_qty"]
     
-    preprocessor = ColumnTransformer(
-        transformers=[
-            ("num", StandardScaler(), numeric_features),
-            ("cat", OneHotEncoder(handle_unknown="ignore"), categorical_features)
-        ]
-    )
+    def get_preprocessor():
+        return ColumnTransformer(
+            transformers=[
+                ("num", StandardScaler(), numeric_features),
+                ("cat", OneHotEncoder(handle_unknown="ignore"), categorical_features)
+            ]
+        )
     
-    # Pipelines
+    # Train Energy Model on valid energy rows
+    df_energy = df.dropna(subset=["energy_kwh"]).copy()
+    Xe = df_energy[features]
+    ye = df_energy["energy_kwh"]
+    
     energy_model = Pipeline([
-        ("preprocessor", preprocessor),
+        ("preprocessor", get_preprocessor()),
         ("regressor", RandomForestRegressor(n_estimators=100, random_state=42))
     ])
+    
+    if len(df_energy) > 5:
+        Xe_train, Xe_test, ye_train, ye_test = train_test_split(Xe, ye, test_size=0.2, random_state=42)
+        energy_model.fit(Xe_train, ye_train)
+        mae_energy = mean_absolute_error(ye_test, energy_model.predict(Xe_test))
+    else:
+        energy_model.fit(Xe, ye)
+        mae_energy = 0.0
+
+    # Train Transport Model on valid transport rows
+    df_trans = df.dropna(subset=["transport_km"]).copy()
+    Xt = df_trans[features]
+    yt = df_trans["transport_km"]
     
     transport_model = Pipeline([
-        ("preprocessor", preprocessor),
+        ("preprocessor", get_preprocessor()),
         ("regressor", RandomForestRegressor(n_estimators=100, random_state=42))
     ])
     
-    # Train-test split for evaluation
-    X_train, X_test, ye_train, ye_test, yt_train, yt_test = train_test_split(
-        X, y_energy, y_transport, test_size=0.2, random_state=42
-    )
-    
-    energy_model.fit(X_train, ye_train)
-    transport_model.fit(X_train, yt_train)
-    
-    # Evaluate
-    ye_pred = energy_model.predict(X_test)
-    yt_pred = transport_model.predict(X_test)
-    
-    mae_energy = mean_absolute_error(ye_test, ye_pred)
-    mae_transport = mean_absolute_error(yt_test, yt_pred)
+    if len(df_trans) > 5:
+        Xt_train, Xt_test, yt_train, yt_test = train_test_split(Xt, yt, test_size=0.2, random_state=42)
+        transport_model.fit(Xt_train, yt_train)
+        mae_transport = mean_absolute_error(yt_test, transport_model.predict(Xt_test))
+    else:
+        transport_model.fit(Xt, yt)
+        mae_transport = 0.0
     
     # Save models
     models = {

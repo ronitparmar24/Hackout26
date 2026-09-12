@@ -9,6 +9,8 @@ from app.ai.risk import calculate_risk_score
 from app.services.llm_client import get_last_provider
 from pydantic import BaseModel
 
+from app.core.auth import get_current_user, AuthenticatedUser, DEMO_GUEST_USER_ID
+
 router = APIRouter()
 
 
@@ -22,9 +24,14 @@ class NLPFilterRequest(BaseModel):
 
 
 @router.post("/api/chat/{run_id}")
-def chat_with_data(run_id: str, req: ChatRequest, db=Depends(get_db)):
+def chat_with_data(
+    run_id: str,
+    req: ChatRequest,
+    db=Depends(get_db),
+    current_user: AuthenticatedUser = Depends(get_current_user),
+):
     """
-    RAG-grounded conversational AI endpoint.
+    RAG-grounded conversational AI endpoint protected by Supabase Auth.
     Retrieves run metrics, top emitters, anomalies, clusters, and recommendations,
     then answers the question strictly grounded in the audited data.
     """
@@ -33,10 +40,14 @@ def chat_with_data(run_id: str, req: ChatRequest, db=Depends(get_db)):
         if not user_question.strip():
             return {"answer": "Please provide a question about your supply chain data.", "response": "Please provide a question about your supply chain data."}
 
-        # 1. Fetch run record
-        run = db.runs.find_one({"id": run_id}, {"_id": 0})
+        # 1. Fetch run record and verify ownership
+        run = db.runs.find_one({"$or": [{"id": run_id}, {"run_id": run_id}]}, {"_id": 0})
         if not run:
             raise HTTPException(404, "Run not found")
+
+        run_owner = run.get("user_id")
+        if run_owner and run_owner not in (current_user.user_id, DEMO_GUEST_USER_ID) and not current_user.is_guest:
+            raise HTTPException(403, "Access denied: this run belongs to another organization.")
 
         # 2. Fetch top 10 highest-emission suppliers
         suppliers = list(
@@ -133,15 +144,24 @@ def chat_with_data(run_id: str, req: ChatRequest, db=Depends(get_db)):
 
 
 @router.get("/api/summary/{run_id}")
-def get_summary(run_id: str, db=Depends(get_db)):
+def get_summary(
+    run_id: str,
+    db=Depends(get_db),
+    current_user: AuthenticatedUser = Depends(get_current_user),
+):
     """
     Generates a 3-4 paragraph executive summary and 3 bullet recommended actions.
     Caches the result in the run document so it is never recomputed on every page load.
+    Protected by Supabase Auth.
     """
     try:
-        run = db.runs.find_one({"id": run_id}, {"_id": 0})
+        run = db.runs.find_one({"$or": [{"id": run_id}, {"run_id": run_id}]}, {"_id": 0})
         if not run:
             raise HTTPException(404, "Run not found")
+
+        run_owner = run.get("user_id")
+        if run_owner and run_owner not in (current_user.user_id, DEMO_GUEST_USER_ID) and not current_user.is_guest:
+            raise HTTPException(403, "Access denied: this report belongs to another organization.")
 
         # Check cache
         if run.get("summary") and run.get("actions"):

@@ -59,7 +59,7 @@ def migrate_supplier_risk_fields():
     print(f"[MongoDB Migration] Backfilling risk_score and risk_reason for {len(suppliers_needing_risk)} suppliers...")
     for s in suppliers_needing_risk:
         try:
-            risk = calculate_risk_score(s)
+            risk = calculate_risk_score(s, skip_llm=True)
             db.suppliers.update_one(
                 {"id": s["id"]},
                 {"$set": {

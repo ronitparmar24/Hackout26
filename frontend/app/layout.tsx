@@ -6,6 +6,8 @@ import TopBar from "@/components/TopBar";
 import { Suspense } from "react";
 
 
+import ErrorBoundary from "@/components/ErrorBoundary";
+
 export const metadata: Metadata = {
   title: "CarbonSense — AI-Powered Supply Chain Dashboard",
   description:
@@ -49,10 +51,11 @@ export default function RootLayout({
             <Suspense fallback={null}>
               <TopBar />
             </Suspense>
-            {children}
+            <ErrorBoundary>
+              {children}
+            </ErrorBoundary>
           </main>
         </div>
-
       </body>
     </html>
   );

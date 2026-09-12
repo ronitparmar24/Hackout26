@@ -24,8 +24,15 @@ VALID_MODES = {"Road", "Rail", "Sea", "Air"}
 VALID_MATERIALS = {"Steel", "Plastic", "Aluminum", "Textile", "Electronics"}
 
 
+from app.core.auth import get_current_user, AuthenticatedUser
+
+
 @router.post("/api/upload")
-def upload_csv(file: UploadFile = File(...), db=Depends(get_db)):
+def upload_csv(
+    file: UploadFile = File(...),
+    db=Depends(get_db),
+    current_user: AuthenticatedUser = Depends(get_current_user),
+):
     if not file.filename.endswith(".csv"):
         raise HTTPException(400, "Only CSV files accepted")
 
@@ -48,10 +55,17 @@ def upload_csv(file: UploadFile = File(...), db=Depends(get_db)):
     if bad_mats:
         raise HTTPException(400, f"Invalid material types: {bad_mats}")
 
-    # Create run record
+    # Coerce numeric columns cleanly (handling spaces/empty strings gracefully)
+    df["energy_kwh"] = pd.to_numeric(df["energy_kwh"], errors="coerce")
+    df["transport_km"] = pd.to_numeric(df["transport_km"], errors="coerce")
+    df["material_qty"] = pd.to_numeric(df["material_qty"], errors="coerce").fillna(1.0)
+
+    # Create run record with authenticated user ownership
     run_id = str(uuid.uuid4())
     db.runs.insert_one({
         "id": run_id,
+        "run_id": run_id,
+        "user_id": current_user.user_id,
         "filename": file.filename,
         "total_suppliers": len(df),
         "total_emissions": 0.0,
@@ -131,9 +145,9 @@ def upload_csv(file: UploadFile = File(...), db=Depends(get_db)):
             sup["is_anomaly"] = bool(anomalies[i])
             sup["cluster_label"] = int(clusters[i])
 
-            # Populate risk_score and risk_reason right after clustering
+            # Populate risk_score and risk_reason right after clustering (fast batch analytical scoring)
             try:
-                risk_info = calculate_risk_score(sup, max_emissions=max_em)
+                risk_info = calculate_risk_score(sup, max_emissions=max_em, skip_llm=True)
                 sup["risk_score"] = risk_info["risk_score"]
                 sup["risk_reason"] = risk_info["risk_reason"]
                 sup["risk_justification"] = risk_info["risk_justification"]
@@ -164,6 +178,7 @@ def upload_csv(file: UploadFile = File(...), db=Depends(get_db)):
     )
 
     return {
+        "id": run_id,
         "run_id": run_id,
         "filename": file.filename,
         "total_suppliers": len(suppliers),

@@ -1,10 +1,20 @@
 import axios from "axios";
+import { getAuthToken } from "./supabase";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 const api = axios.create({
   baseURL: API_BASE,
   headers: { "Content-Type": "application/json" },
+});
+
+// Attach Supabase / Guest Demo Bearer token on every outgoing request
+api.interceptors.request.use((config) => {
+  const token = getAuthToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
 });
 
 /* ---------- Types ---------- */
@@ -78,15 +88,26 @@ export async function getRun(runId: string): Promise<RunResponse> {
 }
 
 export async function listRuns(): Promise<UploadResponse[]> {
-  const { data } = await api.get<UploadResponse[]>("/api/runs");
-  return data;
+  const { data } = await api.get<any[]>("/api/runs");
+  if (!Array.isArray(data)) return [];
+  return data.map((r) => {
+    const runIdentifier = r.run_id || r.id || "";
+    return {
+      ...r,
+      id: runIdentifier,
+      run_id: runIdentifier,
+    };
+  });
 }
 
 export async function getLatestRun(): Promise<RunResponse | null> {
   try {
     const runs = await listRuns();
     if (runs && runs.length > 0) {
-      return await getRun(runs[0].run_id);
+      const activeId = runs[0].run_id || (runs[0] as any).id;
+      if (activeId) {
+        return await getRun(activeId);
+      }
     }
   } catch (e) {
     // ignore
@@ -95,11 +116,15 @@ export async function getLatestRun(): Promise<RunResponse | null> {
 }
 
 export function getExportCSVUrl(runId: string): string {
-  return `${API_BASE}/api/export/csv/${runId}`;
+  const token = getAuthToken();
+  const tokenParam = token ? `?token=${encodeURIComponent(token)}` : "";
+  return `${API_BASE}/api/export/csv/${runId}${tokenParam}`;
 }
 
 export function getExportPDFUrl(runId: string): string {
-  return `${API_BASE}/api/export/pdf/${runId}`;
+  const token = getAuthToken();
+  const tokenParam = token ? `?token=${encodeURIComponent(token)}` : "";
+  return `${API_BASE}/api/export/pdf/${runId}${tokenParam}`;
 }
 
 export async function chatWithData(runId: string, message: string) {

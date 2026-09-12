@@ -13,19 +13,20 @@ logger = logging.getLogger(__name__)
 _last_served_provider: str = "fallback"
 
 # Groq configurations
-GROQ_DEFAULT_MODEL = os.getenv("GROQ_DEFAULT_MODEL", "llama-3.3-70b-versatile")
-GROQ_FALLBACK_MODEL = os.getenv("GROQ_FALLBACK_MODEL", "llama-3.1-8b-instant")
+GROQ_DEFAULT_MODEL = os.getenv("GROQ_DEFAULT_MODEL", "qwen/qwen3.8-27b")
+GROQ_FALLBACK_MODEL = os.getenv("GROQ_FALLBACK_MODEL", "groq/compound-mini")
 ACTIVE_GROQ_MODELS = ["qwen/qwen3.8-27b", "groq/compound-mini", "openai/gpt-oss-120b"]
 
 _groq_api_key = os.environ.get("GROQ_API_KEY", "")
 groq_client = OpenAI(
     base_url=os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1"),
     api_key=_groq_api_key,
+    timeout=10.0,
 ) if _groq_api_key else None
 
 # Gemini configurations
-GEMINI_DEFAULT_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
-GEMINI_FALLBACK_MODELS = ["gemini-3.6-flash", "gemini-flash-latest"]
+GEMINI_DEFAULT_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
+GEMINI_FALLBACK_MODELS = ["gemini-flash-latest", "gemini-2.0-flash"]
 
 _gemini_api_key = os.environ.get("GEMINI_API_KEY", "")
 gemini_client = None
@@ -37,9 +38,8 @@ if _gemini_api_key:
         logger.warning(f"Could not initialize Google GenAI client: {e}")
 
 # OpenRouter configurations
-OPENROUTER_DEFAULT_MODEL = os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.3-70b-instruct:free")
+OPENROUTER_DEFAULT_MODEL = os.getenv("OPENROUTER_MODEL", "nvidia/nemotron-3.5-lightning:free")
 OPENROUTER_FALLBACK_MODELS = [
-    "nvidia/nemotron-3.5-lightning:free",
     "google/gemma-4-26b-a4b-it:free",
     "google/gemma-4-31b-it:free",
 ]
@@ -48,6 +48,7 @@ _openrouter_api_key = os.environ.get("OPENROUTER_API_KEY", "")
 openrouter_client = OpenAI(
     base_url=os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"),
     api_key=_openrouter_api_key,
+    timeout=10.0,
 ) if _openrouter_api_key else None
 
 
