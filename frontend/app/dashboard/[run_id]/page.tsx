@@ -71,6 +71,21 @@ export default function RedesignedDashboardPage() {
   // Active view tab
   const [activeTab, setActiveTab] = useState<TabMode>("table");
 
+  // Tab switching animations (mode="wait")
+  const tabContentVariants = {
+    initial: { opacity: 0, scale: 0.98 },
+    animate: {
+      opacity: 1,
+      scale: 1,
+      transition: { duration: 0.2, ease: "easeInOut" },
+    },
+    exit: {
+      opacity: 0,
+      scale: 0.98,
+      transition: { duration: 0.15, ease: "easeInOut" },
+    },
+  };
+
   const handleResetDemo = async () => {
     setIsResettingDemo(true);
     try {
@@ -242,7 +257,7 @@ export default function RedesignedDashboardPage() {
     return "#A78BFA"; // Purple for Tier 3
   };
 
-  // Top 15 suppliers for Bar Chart
+  // Top 15 suppliers for Bar Chart (memoized with precomputed tier colors)
   const chartData = useMemo(() => {
     return filteredSuppliers.slice(0, 15).map((s) => ({
       name: s.supplier_name.length > 14 ? s.supplier_name.slice(0, 14) + "…" : s.supplier_name,
@@ -253,21 +268,28 @@ export default function RedesignedDashboardPage() {
       region: s.region || "Global",
       material: s.material_type,
       isAnomaly: s.is_anomaly,
+      tierColor: getTierColor(s.tier, s.is_anomaly),
     }));
   }, [filteredSuppliers]);
 
-  // Tree view grouping by Tier
-  const tierTreeGroups = useMemo(() => {
+  // Tree view grouping & aggregated calculations by Tier (strictly cached by filteredSuppliers)
+  const { tierTreeGroups, tierTotals } = useMemo(() => {
     const groups: Record<string, Supplier[]> = {
       "Tier 1": [],
       "Tier 2": [],
       "Tier 3": [],
     };
+    const totals: Record<string, number> = {
+      "Tier 1": 0,
+      "Tier 2": 0,
+      "Tier 3": 0,
+    };
     filteredSuppliers.forEach((s) => {
-      if (groups[s.tier]) groups[s.tier].push(s);
-      else groups["Tier 1"].push(s);
+      const tierKey = groups[s.tier] ? s.tier : "Tier 1";
+      groups[tierKey].push(s);
+      totals[tierKey] += s.total_emissions;
     });
-    return groups;
+    return { tierTreeGroups: groups, tierTotals: totals };
   }, [filteredSuppliers]);
 
   // Loading skeleton state
@@ -681,55 +703,80 @@ export default function RedesignedDashboardPage() {
       {/* ============================================================ */}
       <div className="mb-12">
         {/* Tab Switcher */}
-        <div className="flex items-center gap-2 mb-4">
+        <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-white/[0.03] border border-white/10 backdrop-blur-xl w-fit mb-4">
           <button
+            type="button"
             onClick={() => setActiveTab("table")}
-            className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-heading text-sm font-semibold transition-all ${
-              activeTab === "table"
-                ? "bg-white/10 text-white border border-white/20 shadow-lg"
-                : "text-white/50 hover:text-white hover:bg-white/5"
-            }`}
+            className="relative inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-heading text-sm font-semibold transition-colors"
           >
-            <TableIcon className="w-4 h-4 text-cyan-400" />
-            <span>Supplier Table ({filteredSuppliers.length})</span>
+            {activeTab === "table" && (
+              <motion.div
+                layoutId="tab-underline"
+                className="absolute inset-0 rounded-xl bg-white/10 border border-white/20 shadow-lg"
+                transition={{ type: "spring", bounce: 0.15, duration: 0.35 }}
+              />
+            )}
+            <span className="relative z-10 flex items-center gap-2">
+              <TableIcon className="w-4 h-4 text-cyan-400" />
+              <span className={activeTab === "table" ? "text-white" : "text-white/60 hover:text-white"}>
+                Supplier Table ({filteredSuppliers.length})
+              </span>
+            </span>
           </button>
 
           <button
+            type="button"
             onClick={() => setActiveTab("chart")}
-            className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-heading text-sm font-semibold transition-all ${
-              activeTab === "chart"
-                ? "bg-white/10 text-white border border-white/20 shadow-lg"
-                : "text-white/50 hover:text-white hover:bg-white/5"
-            }`}
+            className="relative inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-heading text-sm font-semibold transition-colors"
           >
-            <BarChart3 className="w-4 h-4 text-emerald-400" />
-            <span>Bar Chart Comparison</span>
+            {activeTab === "chart" && (
+              <motion.div
+                layoutId="tab-underline"
+                className="absolute inset-0 rounded-xl bg-white/10 border border-white/20 shadow-lg"
+                transition={{ type: "spring", bounce: 0.15, duration: 0.35 }}
+              />
+            )}
+            <span className="relative z-10 flex items-center gap-2">
+              <BarChart3 className="w-4 h-4 text-emerald-400" />
+              <span className={activeTab === "chart" ? "text-white" : "text-white/60 hover:text-white"}>
+                Bar Chart Comparison
+              </span>
+            </span>
           </button>
 
           <button
+            type="button"
             onClick={() => setActiveTab("tree")}
-            className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-heading text-sm font-semibold transition-all ${
-              activeTab === "tree"
-                ? "bg-white/10 text-white border border-white/20 shadow-lg"
-                : "text-white/50 hover:text-white hover:bg-white/5"
-            }`}
+            className="relative inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-heading text-sm font-semibold transition-colors"
           >
-            <Network className="w-4 h-4 text-purple-400" />
-            <span>Tier Hierarchy Tree</span>
+            {activeTab === "tree" && (
+              <motion.div
+                layoutId="tab-underline"
+                className="absolute inset-0 rounded-xl bg-white/10 border border-white/20 shadow-lg"
+                transition={{ type: "spring", bounce: 0.15, duration: 0.35 }}
+              />
+            )}
+            <span className="relative z-10 flex items-center gap-2">
+              <Network className="w-4 h-4 text-purple-400" />
+              <span className={activeTab === "tree" ? "text-white" : "text-white/60 hover:text-white"}>
+                Tier Hierarchy Tree
+              </span>
+            </span>
           </button>
         </div>
 
-        {/* Tab Panels with Smooth Transitions */}
-        <AnimatePresence mode="wait">
-          {/* TAB 1: TABLE */}
-          {activeTab === "table" && (
-            <motion.div
-              key="table"
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -15 }}
-              transition={{ duration: 0.3 }}
-            >
+        {/* Tab Panels with Smooth Transitions & Prevent Layout Jump */}
+        <motion.div layout className="relative min-h-[500px]">
+          <AnimatePresence mode="wait">
+            {/* TAB 1: TABLE */}
+            {activeTab === "table" && (
+              <motion.div
+                key="table"
+                variants={tabContentVariants}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+              >
               <GlassCard className="p-0 overflow-hidden border-white/15 shadow-2xl">
                 {/* Mobile Stacked Card View (Per-supplier list on small screens) */}
                 <div className="md:hidden divide-y divide-white/5">
@@ -1031,10 +1078,10 @@ export default function RedesignedDashboardPage() {
           {activeTab === "chart" && (
             <motion.div
               key="chart"
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -15 }}
-              transition={{ duration: 0.3 }}
+              variants={tabContentVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
             >
               <GlassCard className="p-8 border-white/15 shadow-2xl">
                 <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
@@ -1106,11 +1153,11 @@ export default function RedesignedDashboardPage() {
                           );
                         }}
                       />
-                      <Bar dataKey="emissions" radius={[6, 6, 0, 0]} animationDuration={1200}>
+                      <Bar dataKey="emissions" radius={[6, 6, 0, 0]} animationDuration={300}>
                         {chartData.map((entry, index) => (
                           <Cell
                             key={`cell-${index}`}
-                            fill={getTierColor(entry.tier, entry.isAnomaly)}
+                            fill={entry.tierColor}
                             stroke={entry.isAnomaly ? "#EF4444" : "transparent"}
                             strokeWidth={entry.isAnomaly ? 2 : 0}
                           />
@@ -1127,10 +1174,10 @@ export default function RedesignedDashboardPage() {
           {activeTab === "tree" && (
             <motion.div
               key="tree"
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -15 }}
-              transition={{ duration: 0.3 }}
+              variants={tabContentVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
             >
               <GlassCard className="p-8 border-white/15 shadow-2xl">
                 <div className="flex items-center justify-between mb-8 pb-4 border-b border-white/10">
@@ -1149,7 +1196,7 @@ export default function RedesignedDashboardPage() {
                   {["Tier 1", "Tier 2", "Tier 3"].map((tierName) => {
                     const isExpanded = expandedTiers[tierName] ?? true;
                     const suppliersInTier = tierTreeGroups[tierName] || [];
-                    const tierTotal = suppliersInTier.reduce((sum, s) => sum + s.total_emissions, 0);
+                    const tierTotal = tierTotals[tierName] || 0;
 
                     return (
                       <div key={tierName} className="rounded-2xl bg-white/[0.02] border border-white/10 p-5">
@@ -1236,7 +1283,8 @@ export default function RedesignedDashboardPage() {
             </motion.div>
           )}
         </AnimatePresence>
-      </div>
+      </motion.div>
+    </div>
 
       {/* Forecast & AI Recommendations */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
