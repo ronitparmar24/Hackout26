@@ -36,7 +36,7 @@ export default function UploadForm() {
 
       // Brief delay to show completion
       setTimeout(() => {
-        router.push(`/dashboard?run_id=${result.run_id}`);
+        router.push(`/processing/${result.run_id}`);
       }, 600);
     } catch (err: any) {
       clearInterval(progressInterval);
