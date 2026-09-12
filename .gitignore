@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+*.joblib
+venv/
+.venv/
+
+# Environment
+.env
+
+# Generated data & exports
+backend/demo_suppliers.csv
+backend/training_data.csv
+backend/export_*.csv
+backend/report_*.pdf
+
+# Test files
+backend/test_*.py
+backend/test_ml.py
+backend/run_schema.py
+
+# Node
+node_modules/
+.next/
+out/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
