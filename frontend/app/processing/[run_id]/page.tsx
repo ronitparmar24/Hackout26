@@ -132,6 +132,7 @@ export default function ProcessingPage() {
 
   return (
     <div className="min-h-[85vh] flex items-center justify-center px-4 sm:px-6 py-12">
+      <AnimatePresence mode="wait">
         <motion.div
           initial={{ opacity: 0, scale: 0.96 }}
           animate={{

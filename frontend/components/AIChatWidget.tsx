@@ -77,6 +77,7 @@ export default function AIChatWidget({ runId }: { runId: string }) {
     );
   }
 
+  return (
     <div className="fixed inset-0 sm:inset-auto sm:bottom-6 sm:right-6 w-full sm:w-96 sm:max-w-[calc(100vw-2rem)] h-full sm:h-[540px] bg-[#0A0E14]/98 sm:bg-[#0A0E14]/95 backdrop-blur-2xl border-0 sm:border border-cyan-500/40 sm:rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.8),0_0_35px_rgba(34,211,238,0.2)] flex flex-col z-50 overflow-hidden animate-fade-in-up">
       {/* Header */}
       <div className="p-4 border-b border-white/10 flex items-center justify-between bg-white/[0.04]">

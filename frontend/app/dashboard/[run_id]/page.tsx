@@ -2,10 +2,11 @@
 
 import React, { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   getRun,
+  uploadCSV,
   type RunResponse,
   type Supplier,
   filterNLP,
@@ -49,6 +50,8 @@ import {
   TrendingDown,
   ShieldAlert,
   Zap,
+  RotateCcw,
+  X,
 } from "lucide-react";
 
 type TabMode = "table" | "chart" | "tree";
@@ -56,14 +59,32 @@ type SortField = "supplier_name" | "tier" | "region" | "material_type" | "total_
 
 export default function RedesignedDashboardPage() {
   const params = useParams();
+  const router = useRouter();
   const runId = typeof params.run_id === "string" ? params.run_id : "";
 
   const [data, setData] = useState<RunResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isResettingDemo, setIsResettingDemo] = useState(false);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
   // Active view tab
   const [activeTab, setActiveTab] = useState<TabMode>("table");
+
+  const handleResetDemo = async () => {
+    setIsResettingDemo(true);
+    try {
+      const resp = await fetch("/demo_suppliers.csv");
+      const csvText = await resp.text();
+      const file = new File([csvText], "demo_suppliers.csv", { type: "text/csv" });
+      const res = await uploadCSV(file);
+      router.push(`/processing/${res.run_id}`);
+    } catch (e) {
+      router.push("/upload");
+    } finally {
+      setIsResettingDemo(false);
+    }
+  };
 
   // Filter states
   const [selectedTier, setSelectedTier] = useState<string>("All");
@@ -300,7 +321,17 @@ export default function RedesignedDashboardPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={handleResetDemo}
+            disabled={isResettingDemo}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-400/30 text-xs font-mono font-medium transition-all shadow-sm hover:scale-105"
+            title="Re-run live demo pipeline from scratch"
+          >
+            <RotateCcw className={`w-3.5 h-3.5 ${isResettingDemo ? "animate-spin" : ""}`} />
+            <span>{isResettingDemo ? "Resetting..." : "Reset Demo"}</span>
+          </button>
           <ExportButtons runId={data.run_id} />
         </div>
       </div>
@@ -311,11 +342,11 @@ export default function RedesignedDashboardPage() {
       </div>
 
       {/* ============================================================ */}
-      {/* TOP KPI ROW: 4 GLASS CARDS WITH ANIMATED COUNTERS */}
+      {/* TOP KPI ROW: 4 SWIPEABLE / GRID GLASS CARDS WITH ANIMATED COUNTERS */}
       {/* ============================================================ */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="flex overflow-x-auto pb-3 sm:pb-0 sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8 snap-x snap-mandatory scrollbar-none">
         {/* KPI 1: Total Emissions (Emerald Accent) */}
-        <GlassCard className="p-6 relative overflow-hidden group border-white/10 hover:border-emerald-500/40">
+        <GlassCard className="min-w-[260px] sm:min-w-0 snap-start flex-1 p-6 relative overflow-hidden group border-white/10 hover:border-emerald-500/40">
           <div className="absolute top-0 left-0 right-0 h-1 bg-[var(--low,#10B981)]" />
           <div className="text-xs uppercase font-mono tracking-wider text-white/50 mb-2">
             Total Emissions (tCO₂e)
@@ -331,7 +362,7 @@ export default function RedesignedDashboardPage() {
         </GlassCard>
 
         {/* KPI 2: Total Suppliers (Cyan Accent) */}
-        <GlassCard className="p-6 relative overflow-hidden group border-white/10 hover:border-cyan-400/40">
+        <GlassCard className="min-w-[260px] sm:min-w-0 snap-start flex-1 p-6 relative overflow-hidden group border-white/10 hover:border-cyan-400/40">
           <div className="absolute top-0 left-0 right-0 h-1 bg-[var(--ai-accent,#22D3EE)]" />
           <div className="text-xs uppercase font-mono tracking-wider text-white/50 mb-2">
             Total Suppliers Audited
@@ -349,7 +380,7 @@ export default function RedesignedDashboardPage() {
         </GlassCard>
 
         {/* KPI 3: Anomalies Detected (Red Accent) */}
-        <GlassCard className="p-6 relative overflow-hidden group border-white/10 hover:border-red-500/40">
+        <GlassCard className="min-w-[260px] sm:min-w-0 snap-start flex-1 p-6 relative overflow-hidden group border-white/10 hover:border-red-500/40">
           <div className="absolute top-0 left-0 right-0 h-1 bg-[var(--high,#EF4444)]" />
           <div className="text-xs uppercase font-mono tracking-wider text-white/50 mb-2">
             Anomalies Detected
@@ -365,7 +396,7 @@ export default function RedesignedDashboardPage() {
         </GlassCard>
 
         {/* KPI 4: Potential Reduction (Amber/Emerald Accent) */}
-        <GlassCard className="p-6 relative overflow-hidden group border-white/10 hover:border-amber-500/40">
+        <GlassCard className="min-w-[260px] sm:min-w-0 snap-start flex-1 p-6 relative overflow-hidden group border-white/10 hover:border-amber-500/40">
           <div className="absolute top-0 left-0 right-0 h-1 bg-[var(--moderate,#F59E0B)]" />
           <div className="text-xs uppercase font-mono tracking-wider text-white/50 mb-2">
             Potential Reduction (%)
@@ -381,9 +412,156 @@ export default function RedesignedDashboardPage() {
       </div>
 
       {/* ============================================================ */}
-      {/* STICKY GLASS FILTER BAR */}
       {/* ============================================================ */}
-      <div className="sticky top-4 z-30 mb-8">
+      {/* MOBILE FILTER TOGGLE & BOTTOM-SHEET */}
+      {/* ============================================================ */}
+      <div className="lg:hidden mb-6">
+        <button
+          type="button"
+          onClick={() => setMobileFiltersOpen(true)}
+          className="w-full inline-flex items-center justify-between px-4 py-3 rounded-2xl bg-[#0A0E14]/90 border border-white/15 text-white text-xs font-semibold shadow-lg backdrop-blur-xl hover:border-cyan-400/40 transition-all"
+        >
+          <div className="flex items-center gap-2">
+            <Filter className="w-4 h-4 text-cyan-400" />
+            <span>Filter Suppliers & Corridors</span>
+          </div>
+          <span className="px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 font-mono text-[10px] border border-cyan-400/30 font-bold">
+            {[selectedTier !== "All", selectedRegion !== "All", selectedMaterial !== "All", selectedMode !== "All", anomaliesOnly].filter(Boolean).length} Active
+          </span>
+        </button>
+
+        {/* Mobile Search input */}
+        <form onSubmit={handleNLPSearch} className="relative mt-3">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search suppliers or type natural query..."
+            className="w-full bg-white/[0.06] border border-white/10 focus:border-cyan-400/60 rounded-xl py-2 pl-9 pr-8 text-xs text-white placeholder-white/30 focus:outline-none transition-colors"
+          />
+          <Search className="w-3.5 h-3.5 text-white/40 absolute left-3 top-1/2 -translate-y-1/2" />
+        </form>
+      </div>
+
+      {/* Mobile Glass Bottom-Sheet Modal */}
+      {mobileFiltersOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in">
+          <div className="w-full max-w-lg bg-[#0A0E14]/95 border border-cyan-400/30 rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl space-y-5 animate-fade-in-up">
+            <div className="flex items-center justify-between pb-3 border-b border-white/10">
+              <div className="flex items-center gap-2 font-heading font-bold text-white text-sm">
+                <Filter className="w-4 h-4 text-cyan-400" />
+                <span>Filter Suppliers</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMobileFiltersOpen(false)}
+                className="p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Tier */}
+            <div>
+              <div className="text-[11px] font-mono text-white/50 uppercase mb-2">Tier Cohort:</div>
+              <div className="flex flex-wrap gap-2">
+                {["All", "Tier 1", "Tier 2", "Tier 3"].map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => setSelectedTier(t)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-all ${
+                      selectedTier === t
+                        ? "bg-cyan-500/20 text-cyan-300 border-cyan-400/50 font-bold"
+                        : "bg-white/5 border-white/10 text-white/70"
+                    }`}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Region & Material */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <div className="text-[11px] font-mono text-white/50 uppercase mb-1.5">Region:</div>
+                <select
+                  value={selectedRegion}
+                  onChange={(e) => setSelectedRegion(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+                >
+                  <option value="All" className="bg-slate-900 text-white">All Regions</option>
+                  {regions.map((r) => (
+                    <option key={r} value={r} className="bg-slate-900 text-white">
+                      {r}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <div className="text-[11px] font-mono text-white/50 uppercase mb-1.5">Material:</div>
+                <select
+                  value={selectedMaterial}
+                  onChange={(e) => setSelectedMaterial(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+                >
+                  {materials.map((m) => (
+                    <option key={m} value={m} className="bg-slate-900 text-white">
+                      {m}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Transport Mode */}
+            <div>
+              <div className="text-[11px] font-mono text-white/50 uppercase mb-1.5">Transport Mode:</div>
+              <select
+                value={selectedMode}
+                onChange={(e) => setSelectedMode(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+              >
+                {transportModes.map((tm) => (
+                  <option key={tm} value={tm} className="bg-slate-900 text-white">
+                    {tm}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Anomalies Toggle */}
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => setAnomaliesOnly(!anomaliesOnly)}
+                className={`w-full inline-flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-semibold border transition-all ${
+                  anomaliesOnly
+                    ? "bg-red-500/20 text-red-300 border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.4)]"
+                    : "bg-white/5 text-white/60 border-white/10 hover:text-white"
+                }`}
+              >
+                <span>Show Anomalies Only</span>
+                <span className={`w-2.5 h-2.5 rounded-full ${anomaliesOnly ? "bg-red-400" : "bg-white/30"}`} />
+              </button>
+            </div>
+
+            <Button
+              variant="primary"
+              onClick={() => setMobileFiltersOpen(false)}
+              className="w-full justify-center py-3"
+            >
+              Apply Filters ({filteredSuppliers.length} Matches)
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================ */}
+      {/* DESKTOP STICKY GLASS FILTER BAR */}
+      {/* ============================================================ */}
+      <div className="hidden lg:block sticky top-4 z-30 mb-8">
         <GlassCard
           variant="strong"
           className="p-4 border-white/15 backdrop-blur-2xl shadow-[0_10px_30px_rgba(0,0,0,0.5)]"
@@ -553,7 +731,71 @@ export default function RedesignedDashboardPage() {
               transition={{ duration: 0.3 }}
             >
               <GlassCard className="p-0 overflow-hidden border-white/15 shadow-2xl">
-                <div className="overflow-x-auto">
+                {/* Mobile Stacked Card View (Per-supplier list on small screens) */}
+                <div className="md:hidden divide-y divide-white/5">
+                  {filteredSuppliers.map((s) => {
+                    const score = Number(s.risk_score ?? (s.is_anomaly ? 85 : 20));
+                    return (
+                      <div key={s.id} className="p-4 space-y-2.5">
+                        <div className="flex items-start justify-between gap-2">
+                          <Link
+                            href={`/dashboard/${runId}/supplier/${s.id}`}
+                            className="font-bold text-white text-sm hover:text-cyan-300 transition-colors flex items-center gap-2"
+                          >
+                            {s.is_anomaly && (
+                              <span className="w-2 h-2 rounded-full bg-red-400 animate-ping flex-shrink-0" />
+                            )}
+                            <span className="truncate max-w-[200px]">{s.supplier_name}</span>
+                          </Link>
+                          <span className="font-mono text-xs font-bold text-white whitespace-nowrap">
+                            {(s.total_emissions / 1000).toFixed(1)} tCO₂e
+                          </span>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2 text-xs">
+                          <span className="px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-white/70 font-mono text-[10px]">
+                            {s.tier}
+                          </span>
+                          <span className="text-white/50 text-[11px]">{s.region || "Global"}</span>
+                          <span className="text-white/50 text-[11px]">• {s.material_type}</span>
+                          <span className="text-white/50 text-[11px]">• {s.transport_mode}</span>
+
+                          <div
+                            className={`ml-auto px-2 py-0.5 rounded-full text-[10px] font-mono font-bold border ${
+                              score >= 70
+                                ? "bg-red-500/15 text-red-400 border-red-500/40"
+                                : score >= 40
+                                ? "bg-amber-500/15 text-amber-400 border-amber-500/40"
+                                : "bg-emerald-500/15 text-emerald-400 border-emerald-500/40"
+                            }`}
+                          >
+                            Risk {score.toFixed(0)}
+                          </div>
+                        </div>
+
+                        <div className="text-[11px] text-white/70 font-sans bg-white/[0.02] p-2.5 rounded-xl border border-white/5 flex items-center justify-between gap-2">
+                          <span className="line-clamp-2">
+                            {s.risk_reason ||
+                              s.risk_justification ||
+                              (s.is_anomaly
+                                ? "Flagged as high risk due to carbon divergence."
+                                : "Standard risk profile.")}
+                          </span>
+                          <Link
+                            href={`/dashboard/${runId}/supplier/${s.id}`}
+                            className="text-cyan-400 hover:text-cyan-300 font-semibold text-[10px] whitespace-nowrap flex-shrink-0 flex items-center gap-0.5"
+                          >
+                            <span>Profile</span>
+                            <ChevronRight className="w-3 h-3" />
+                          </Link>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Tablet & Desktop Full Sortable Table */}
+                <div className="hidden md:block overflow-x-auto">
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
                       <tr className="bg-white/[0.04] border-b border-white/10 text-[11px] font-heading font-semibold uppercase tracking-wider text-white/50">

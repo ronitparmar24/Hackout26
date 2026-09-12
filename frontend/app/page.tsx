@@ -1,7 +1,8 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   ArrowRight,
@@ -24,12 +25,15 @@ import {
   FileText,
   HelpCircle,
   Zap,
+  Loader2,
+  Play,
 } from "lucide-react";
 import GlassCard from "@/components/GlassCard";
 import AnimatedCounter from "@/components/AnimatedCounter";
 import GradientBackground from "@/components/GradientBackground";
 import StatusBadge from "@/components/StatusBadge";
 import Button from "@/components/Button";
+import { uploadCSV } from "@/lib/api";
 
 // Demo mini-chart data for the live preview card
 const previewBars = [
@@ -42,12 +46,52 @@ const previewBars = [
 ];
 
 export default function MarketingLandingPage() {
+  const router = useRouter();
+  const [isStartingDemo, setIsStartingDemo] = useState(false);
+
+  const handleLiveDemo = async () => {
+    setIsStartingDemo(true);
+    try {
+      // 1. Fetch demo_suppliers.csv
+      const resp = await fetch("/demo_suppliers.csv");
+      const csvText = await resp.text();
+      const file = new File([csvText], "demo_suppliers.csv", { type: "text/csv" });
+
+      // 2. Upload to backend
+      const uploadRes = await uploadCSV(file);
+      const runId = uploadRes.run_id;
+
+      // 3. Save run in localStorage
+      try {
+        const existing = JSON.parse(localStorage.getItem("carbonsense_runs") || "[]");
+        existing.unshift({
+          run_id: runId,
+          filename: "demo_suppliers.csv",
+          total_suppliers: uploadRes.total_suppliers,
+          total_emissions: uploadRes.total_emissions,
+          status: "done",
+          timestamp: new Date().toISOString(),
+        });
+        localStorage.setItem("carbonsense_runs", JSON.stringify(existing.slice(0, 20)));
+      } catch (e) {}
+
+      // 4. Auto navigate to processing page
+      router.push(`/processing/${runId}`);
+    } catch (err) {
+      console.error("Live demo error:", err);
+      // Fallback
+      router.push("/upload");
+    } finally {
+      setIsStartingDemo(false);
+    }
+  };
+
   return (
     <div className="relative min-h-screen text-white overflow-hidden">
       {/* ============================================================ */}
       {/* 1. HERO SECTION WITH FULL GRADIENT MESH BACKGROUND */}
       {/* ============================================================ */}
-      <section className="relative pt-12 pb-24 lg:pt-20 lg:pb-32 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+      <section className="relative pt-10 pb-20 lg:pt-18 lg:pb-28 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
         <div className="text-center max-w-4xl mx-auto">
           {/* Eyebrow badge */}
           <motion.div
@@ -61,12 +105,12 @@ export default function MarketingLandingPage() {
             </StatusBadge>
           </motion.div>
 
-          {/* Punchy, Non-Generic Main Headline */}
+          {/* Punchy, Responsive Main Headline */}
           <motion.h1
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.1 }}
-            className="text-4xl sm:text-6xl lg:text-7xl font-bold tracking-tight font-heading leading-[1.08] mb-6"
+            className="text-3xl sm:text-5xl lg:text-7xl font-bold tracking-tight font-heading leading-[1.1] mb-6"
           >
             See every gram of carbon in your{" "}
             <span className="bg-gradient-to-r from-[#10B981] via-[#22D3EE] to-[#60A5FA] bg-clip-text text-transparent">
@@ -79,38 +123,55 @@ export default function MarketingLandingPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
-            className="text-lg sm:text-xl text-white/70 max-w-2xl mx-auto font-sans leading-relaxed mb-10"
+            className="text-base sm:text-lg lg:text-xl text-white/70 max-w-2xl mx-auto font-sans leading-relaxed mb-10"
           >
             Trace upstream Scope 3 emissions across multi-tier suppliers with audited 
             GHG emission factors, machine-learning anomaly detection, and automated greener supplier routing.
           </motion.p>
 
-          {/* Dual CTAs */}
+          {/* Action CTAs with Live Demo Mode Button */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.3 }}
-            className="flex flex-wrap items-center justify-center gap-4 mb-16"
+            className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 mb-16"
           >
-            <Link href="/upload">
+            <Button
+              variant="primary"
+              onClick={handleLiveDemo}
+              disabled={isStartingDemo}
+              className="w-full sm:w-auto text-sm sm:text-base px-7 py-3.5 shadow-[0_0_30px_rgba(34,211,238,0.4)] border border-cyan-400/50 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:scale-105 transition-all"
+              icon={
+                isStartingDemo ? (
+                  <Loader2 className="w-4 h-4 animate-spin ml-1 text-black" />
+                ) : (
+                  <Play className="w-4 h-4 ml-1 fill-black text-black" />
+                )
+              }
+              iconPosition="right"
+            >
+              {isStartingDemo ? "Launching Demo..." : "Run Live Demo"}
+            </Button>
+
+            <Link href="/upload" className="w-full sm:w-auto">
               <Button
-                variant="primary"
-                className="text-base px-8 py-3.5 shadow-[0_0_25px_rgba(16,185,129,0.35)]"
-                icon={<ArrowRight className="w-5 h-5 ml-1" />}
+                variant="secondary"
+                className="w-full sm:w-auto text-sm sm:text-base px-6 py-3.5"
+                icon={<ArrowRight className="w-4 h-4 ml-1" />}
                 iconPosition="right"
               >
-                Try the Demo
+                Upload CSV
               </Button>
             </Link>
 
-            <a href="#how-it-works">
+            <a href="#how-it-works" className="w-full sm:w-auto">
               <Button
                 variant="secondary"
-                className="text-base px-8 py-3.5"
+                className="w-full sm:w-auto text-sm sm:text-base px-6 py-3.5"
                 icon={<ChevronDown className="w-4 h-4 ml-1" />}
                 iconPosition="right"
               >
-                See How It Works
+                How It Works
               </Button>
             </a>
           </motion.div>

@@ -163,10 +163,34 @@ export default function UploadPage() {
       </div>
 
       {errorMessage && (
-        <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm flex items-center gap-3">
-          <AlertCircle className="w-5 h-5 flex-shrink-0" />
-          <span>{errorMessage}</span>
-        </div>
+        <GlassCard className="mb-8 p-5 border-red-500/40 bg-red-950/20 shadow-[0_0_25px_rgba(239,68,68,0.15)] animate-fade-in-up">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-red-500/20 border border-red-500/40 flex items-center justify-center text-red-400 flex-shrink-0 mt-0.5 sm:mt-0">
+                <AlertCircle className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-red-300 font-heading">Ingestion / Processing Error</h4>
+                <p className="text-xs text-red-400/80 mt-0.5 leading-relaxed">{errorMessage}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 self-end sm:self-center">
+              <Button
+                variant="secondary"
+                onClick={handleLoadSample}
+                className="text-xs border-red-500/30 hover:border-red-500/60 text-white"
+              >
+                Try Sample Dataset
+              </Button>
+              <button
+                onClick={() => setErrorMessage(null)}
+                className="px-2.5 py-1.5 rounded-lg text-xs text-white/50 hover:text-white transition-colors"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        </GlassCard>
       )}
 
       {/* Large Glass Card Drop Zone */}

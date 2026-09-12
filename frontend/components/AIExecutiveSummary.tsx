@@ -17,6 +17,20 @@ export default function AIExecutiveSummary({ runId }: { runId: string }) {
 
   const fetchSummary = async () => {
     if (!runId) return;
+
+    // 1. Check client-side sessionStorage cache first (instant load, no LLM re-invocation)
+    try {
+      const cached = sessionStorage.getItem(`cs_summary_${runId}`);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        setData(parsed);
+        setLoading(false);
+        return;
+      }
+    } catch (e) {
+      // ignore storage errors
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -33,14 +47,21 @@ export default function AIExecutiveSummary({ runId }: { runId: string }) {
           .filter(Boolean);
       }
 
-      setData({
+      const finalData: SummaryData = {
         summary: summaryText,
         actions: actionsList.length > 0 ? actionsList : [
           "Audit top 3 emitting suppliers for immediate carbon reduction targets.",
           "Transition long-haul freight over 1,000 km to rail or coastal maritime shipping.",
           "Execute recommended supplier substitutions for high-variance materials."
         ],
-      });
+      };
+
+      setData(finalData);
+
+      // Save to client cache
+      try {
+        sessionStorage.setItem(`cs_summary_${runId}`, JSON.stringify(finalData));
+      } catch (e) {}
     } catch (err: any) {
       console.warn("Summary fetch note:", err);
       // Fallback deterministic summary

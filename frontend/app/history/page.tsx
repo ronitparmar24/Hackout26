@@ -19,6 +19,7 @@ import {
   History as HistoryIcon,
   RefreshCw,
   Zap,
+  Upload,
 } from "lucide-react";
 import {
   LineChart,
@@ -408,13 +409,33 @@ export default function HistoryTimelinePage() {
       )}
 
       {/* ============================================================ */}
-      {/* TIMELINE OF PAST RUNS AS GLASS CARDS */}
+      {/* TIMELINE OF PAST RUNS AS GLASS CARDS OR EMPTY STATE */}
       {/* ============================================================ */}
-      <div className="relative">
-        {/* Glowing vertical spine line */}
-        <div className="absolute top-6 bottom-6 left-6 sm:left-8 w-0.5 bg-gradient-to-b from-cyan-500/60 via-emerald-500/40 to-transparent" />
+      {runs.length === 0 && !loading ? (
+        <GlassCard className="p-12 text-center max-w-xl mx-auto border-white/10 my-8 animate-fade-in-up">
+          <div className="w-16 h-16 rounded-2xl bg-cyan-500/10 border border-cyan-400/30 flex items-center justify-center text-cyan-400 mx-auto mb-5 shadow-[0_0_25px_rgba(34,211,238,0.2)]">
+            <Clock className="w-8 h-8" />
+          </div>
+          <h3 className="text-xl font-bold font-heading text-white mb-2">No Audit Runs Yet</h3>
+          <p className="text-sm text-white/50 mb-6 leading-relaxed max-w-md mx-auto">
+            You haven't run any supply chain carbon audits yet. Upload a supplier CSV or launch our sample dataset to trace Scope 3 emissions.
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <Button variant="primary" onClick={() => router.push("/upload")} className="gap-2">
+              <Upload className="w-4 h-4" />
+              Upload Supplier CSV
+            </Button>
+            <Button variant="secondary" onClick={() => router.push("/upload")} className="gap-2">
+              Try Sample Dataset
+            </Button>
+          </div>
+        </GlassCard>
+      ) : (
+        <div className="relative">
+          {/* Glowing vertical spine line */}
+          <div className="absolute top-6 bottom-6 left-6 sm:left-8 w-0.5 bg-gradient-to-b from-cyan-500/60 via-emerald-500/40 to-transparent" />
 
-        <div className="space-y-6">
+          <div className="space-y-6">
           {runs.map((run, idx) => {
             const isSelected = selectedRunIds.includes(run.id);
             const formattedDate = new Date(run.created_at || Date.now()).toLocaleDateString(
@@ -554,6 +575,7 @@ export default function HistoryTimelinePage() {
           })}
         </div>
       </div>
+      )}
     </div>
   );
 }
