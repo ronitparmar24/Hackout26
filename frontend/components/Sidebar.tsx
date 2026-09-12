@@ -12,6 +12,11 @@ import {
   Sliders,
   ShieldCheck,
   Building2,
+  TerminalSquare,
+  Radar,
+  FileText,
+  Presentation,
+  Network,
   type LucideIcon,
 } from "lucide-react";
 import ThemeToggle from "./ThemeToggle";
@@ -35,6 +40,7 @@ const navGroups: NavGroup[] = [
       { href: "/", label: "Intake & Upload", icon: Upload },
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
       { href: "/history", label: "Run History", icon: History },
+      { href: "/terminal", label: "AI Command Center", icon: TerminalSquare, badge: "Sys" },
     ],
   },
   {
@@ -43,6 +49,8 @@ const navGroups: NavGroup[] = [
       { href: "/supply-chain", label: "Supply Chain Map", icon: Globe, badge: "Geo" },
       { href: "/simulator", label: "What-If Simulator", icon: Sliders, badge: "AI" },
       { href: "/trading", label: "Carbon Trading Desk", icon: Globe, badge: "Live" },
+      { href: "/risk-radar", label: "Climate Risk Radar", icon: Radar, badge: "Alert" },
+      { href: "/waterfall", label: "Carbon Waterfall", icon: Network, badge: "Vis" },
     ],
   },
   {
@@ -50,6 +58,8 @@ const navGroups: NavGroup[] = [
     items: [
       { href: "/compliance", label: "Audit & Compliance", icon: ShieldCheck, badge: "CSRD" },
       { href: "/suppliers", label: "Supplier Directory", icon: Building2 },
+      { href: "/invoicing", label: "Internal Invoicing", icon: FileText, badge: "ICP" },
+      { href: "/boardroom", label: "Executive Boardroom", icon: Presentation, badge: "C-Suite" },
     ],
   },
 ];
