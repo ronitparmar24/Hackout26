@@ -2016,3 +2016,23 @@ html .progress-bar-fill,
 html .spinner {
   transition: none;
 }
+
+/* Leaflet Custom Glassmorphism Pin Styling */
+.leaflet-div-icon.custom-glass-pin {
+  background: transparent !important;
+  border: none !important;
+}
+
+.leaflet-container {
+  font-family: inherit;
+  border-radius: 1.5rem;
+}
+
+.leaflet-pane {
+  z-index: 10 !important;
+}
+
+.leaflet-top,
+.leaflet-bottom {
+  z-index: 20 !important;
+}

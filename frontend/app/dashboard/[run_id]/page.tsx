@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -22,6 +23,18 @@ import ForecastChart from "@/components/ForecastChart";
 import RecommendationPanel from "@/components/RecommendationPanel";
 import ExportButtons from "@/components/ExportButtons";
 
+const SupplierMapView = dynamic(() => import("@/components/SupplierMapView"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-[580px] rounded-3xl border border-white/10 bg-black/40 flex items-center justify-center">
+      <div className="flex flex-col items-center gap-3 text-cyan-400 font-mono text-sm">
+        <span className="w-8 h-8 rounded-full border-2 border-cyan-400 border-t-transparent animate-spin" />
+        <span>Initializing OpenStreetMap + Leaflet View...</span>
+      </div>
+    </div>
+  ),
+});
+
 import {
   BarChart,
   Bar,
@@ -37,6 +50,8 @@ import {
   Table as TableIcon,
   BarChart3,
   Network,
+  Globe,
+  MapPin,
   AlertTriangle,
   Layers,
   ArrowUpDown,
@@ -54,7 +69,7 @@ import {
   X,
 } from "lucide-react";
 
-type TabMode = "table" | "chart" | "tree";
+type TabMode = "table" | "chart" | "tree" | "map";
 type SortField = "supplier_name" | "tier" | "region" | "material_type" | "total_emissions" | "is_anomaly" | "risk_score";
 
 export default function RedesignedDashboardPage() {
@@ -70,6 +85,7 @@ export default function RedesignedDashboardPage() {
 
   // Active view tab
   const [activeTab, setActiveTab] = useState<TabMode>("table");
+  const [selectedMapSupplierId, setSelectedMapSupplierId] = useState<string | null>(null);
 
   // Tab switching animations (mode="wait")
   const tabContentVariants = {
@@ -763,6 +779,26 @@ export default function RedesignedDashboardPage() {
               </span>
             </span>
           </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab("map")}
+            className="relative inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-heading text-sm font-semibold transition-colors"
+          >
+            {activeTab === "map" && (
+              <motion.div
+                layoutId="tab-underline"
+                className="absolute inset-0 rounded-xl bg-white/10 border border-white/20 shadow-lg"
+                transition={{ type: "spring", bounce: 0.15, duration: 0.35 }}
+              />
+            )}
+            <span className="relative z-10 flex items-center gap-2">
+              <Globe className="w-4 h-4 text-cyan-400" />
+              <span className={activeTab === "map" ? "text-white" : "text-white/60 hover:text-white"}>
+                Map View
+              </span>
+            </span>
+          </button>
         </div>
 
         {/* Tab Panels with Smooth Transitions & Prevent Layout Jump */}
@@ -833,13 +869,27 @@ export default function RedesignedDashboardPage() {
                                 ? "Flagged as high risk due to carbon divergence."
                                 : "Standard risk profile.")}
                           </span>
-                          <Link
-                            href={`/dashboard/${runId}/supplier/${s.id}`}
-                            className="text-cyan-400 hover:text-cyan-300 font-semibold text-[10px] whitespace-nowrap flex-shrink-0 flex items-center gap-0.5"
-                          >
-                            <span>Profile</span>
-                            <ChevronRight className="w-3 h-3" />
-                          </Link>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedMapSupplierId(s.id);
+                                setActiveTab("map");
+                              }}
+                              className="text-cyan-400 hover:text-cyan-300 font-semibold text-[10px] whitespace-nowrap flex items-center gap-1 bg-cyan-500/10 px-2 py-0.5 rounded-lg border border-cyan-500/20"
+                              title="Fly to supplier in Map View"
+                            >
+                              <MapPin className="w-3 h-3" />
+                              <span>Map</span>
+                            </button>
+                            <Link
+                              href={`/dashboard/${runId}/supplier/${s.id}`}
+                              className="text-white hover:text-cyan-300 font-semibold text-[10px] whitespace-nowrap flex items-center gap-0.5"
+                            >
+                              <span>Profile</span>
+                              <ChevronRight className="w-3 h-3" />
+                            </Link>
+                          </div>
                         </div>
                       </div>
                     );
@@ -930,23 +980,38 @@ export default function RedesignedDashboardPage() {
                           >
                             {/* Supplier Name with Anomaly Pulsing Dot & Link to Detail */}
                             <td className="py-3.5 px-6 font-medium text-white">
-                              <Link
-                                href={`/dashboard/${runId}/supplier/${s.id}`}
-                                className="inline-flex items-center gap-2.5 hover:text-cyan-300 transition-colors group/link"
-                                title="Click to view detailed supplier emissions breakdown & recommendations"
-                              >
-                                {s.is_anomaly ? (
-                                  <span className="relative flex h-2.5 w-2.5 flex-shrink-0">
-                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
-                                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
+                              <div className="flex items-center justify-between gap-2">
+                                <Link
+                                  href={`/dashboard/${runId}/supplier/${s.id}`}
+                                  className="inline-flex items-center gap-2.5 hover:text-cyan-300 transition-colors group/link truncate"
+                                  title="Click to view detailed supplier emissions breakdown & recommendations"
+                                >
+                                  {s.is_anomaly ? (
+                                    <span className="relative flex h-2.5 w-2.5 flex-shrink-0">
+                                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
+                                    </span>
+                                  ) : (
+                                    <span className="w-2 h-2 rounded-full bg-white/20 flex-shrink-0 group-hover/link:bg-cyan-400 transition-colors" />
+                                  )}
+                                  <span className="truncate max-w-[170px] underline-offset-4 group-hover/link:underline font-medium">
+                                    {s.supplier_name}
                                   </span>
-                                ) : (
-                                  <span className="w-2 h-2 rounded-full bg-white/20 flex-shrink-0 group-hover/link:bg-cyan-400 transition-colors" />
-                                )}
-                                <span className="truncate max-w-[190px] underline-offset-4 group-hover/link:underline font-medium">
-                                  {s.supplier_name}
-                                </span>
-                              </Link>
+                                </Link>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setSelectedMapSupplierId(s.id);
+                                    setActiveTab("map");
+                                  }}
+                                  title="Pan & Zoom to supplier on Map View"
+                                  className="p-1 rounded-lg text-white/30 hover:text-cyan-300 hover:bg-cyan-500/20 transition-all flex-shrink-0 group/mapbtn"
+                                >
+                                  <MapPin className="w-3.5 h-3.5 group-hover/mapbtn:scale-110 transition-transform" />
+                                </button>
+                              </div>
                             </td>
 
                             {/* Tier */}
@@ -1289,6 +1354,24 @@ export default function RedesignedDashboardPage() {
                   })}
                 </div>
               </GlassCard>
+            </motion.div>
+          )}
+
+          {/* TAB 4: MAP VIEW */}
+          {activeTab === "map" && (
+            <motion.div
+              key="map"
+              variants={tabContentVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+            >
+              <SupplierMapView
+                suppliers={filteredSuppliers}
+                runId={runId}
+                selectedSupplierId={selectedMapSupplierId}
+                onSelectSupplier={(s) => setSelectedMapSupplierId(s.id)}
+              />
             </motion.div>
           )}
         </AnimatePresence>
