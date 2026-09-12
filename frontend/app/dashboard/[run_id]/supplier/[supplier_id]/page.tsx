@@ -19,6 +19,9 @@ import {
   ExternalLink,
   Activity,
   AlertTriangle,
+  Leaf,
+  Coins,
+  Info,
 } from "lucide-react";
 import {
   PieChart,
@@ -48,6 +51,7 @@ export default function SupplierProfilePage() {
   const [supplier, setSupplier] = useState<Supplier | null>(null);
   const [runData, setRunData] = useState<RunResponse | null>(null);
   const [recommendation, setRecommendation] = useState<any | null>(null);
+  const [activeStrategyTab, setActiveStrategyTab] = useState<"swap" | "offset">("swap");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -90,23 +94,12 @@ export default function SupplierProfilePage() {
           });
         }
 
-        // Find recommendation for this supplier
+        // Find recommendation for this supplier (null if no lower-carbon swap alternative exists)
         const recs: any[] = (res as any).recommendations || [];
-        const foundRec = recs.find((r) => r.supplier_id === supplierId);
-        if (foundRec) {
-          setRecommendation(foundRec);
-        } else if (recs.length > 0) {
-          // Use first recommendation as template
-          setRecommendation(recs[0]);
-        } else {
-          // Default recommendation template
-          setRecommendation({
-            from_supplier: foundSupplier?.supplier_name || "Current Supplier",
-            to_supplier: "EcoTransit Green Corridor Ltd",
-            similarity_score: 0.91,
-            emissions_reduction_pct: 32.4,
-          });
-        }
+        const foundRec = recs.find(
+          (r) => r.supplier_id === supplierId || (foundSupplier && r.from_supplier === foundSupplier.supplier_name)
+        );
+        setRecommendation(foundRec || null);
       } catch (err: any) {
         setError(err.message || "Failed to load supplier details");
       } finally {
@@ -136,6 +129,24 @@ export default function SupplierProfilePage() {
       },
     ];
   }, [supplier]);
+
+  // Suggested Offsets calculations
+  const residualTons = useMemo(() => {
+    if (!supplier) return 0;
+    return Number((supplier.total_emissions / 1000).toFixed(1));
+  }, [supplier]);
+
+  const offsetCostMin = useMemo(() => Math.round(residualTons * 15), [residualTons]);
+  const offsetCostMax = useMemo(() => Math.round(residualTons * 20), [residualTons]);
+
+  const postSwapResidualTons = useMemo(() => {
+    if (!supplier || !recommendation) return 0;
+    const redPct = recommendation.emissions_reduction_pct || 28.6;
+    return Number(((supplier.total_emissions * (1 - redPct / 100)) / 1000).toFixed(1));
+  }, [supplier, recommendation]);
+
+  const postSwapOffsetCostMin = useMemo(() => Math.round(postSwapResidualTons * 15), [postSwapResidualTons]);
+  const postSwapOffsetCostMax = useMemo(() => Math.round(postSwapResidualTons * 20), [postSwapResidualTons]);
 
   if (loading) {
     return (
@@ -427,124 +438,278 @@ export default function SupplierProfilePage() {
       </div>
 
       {/* ============================================================ */}
-      {/* CARD 3: RECOMMENDED ALTERNATIVE SUPPLIER CARD */}
+      {/* CARD 3: MITIGATION STRATEGY (SUGGESTED OFFSETS OR GREEN SWAP) */}
       {/* ============================================================ */}
-      <GlassCard className="p-6 sm:p-8 border-emerald-500/40 shadow-[0_0_35px_rgba(16,185,129,0.12)] relative overflow-hidden bg-[#0A0E14]/80">
-        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-400 via-cyan-400 to-emerald-400" />
+      {!recommendation || activeStrategyTab === "offset" ? (
+        <GlassCard className="p-6 sm:p-8 border-cyan-500/40 shadow-[0_0_35px_rgba(34,211,238,0.12)] relative overflow-hidden bg-[#0A0E14]/80">
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-400 via-emerald-400 to-cyan-400" />
 
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-6 pb-4 border-b border-white/10">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.3)]">
-              <CheckCircle2 className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold font-heading text-white tracking-tight">
-                Recommended Green Supplier Alternative
-              </h2>
-              <p className="text-xs text-white/50 font-sans">
-                Algorithmic substitution based on multi-dimensional cosine similarity across materials & logistics
-              </p>
-            </div>
-          </div>
-
-          <span className="text-xs font-mono text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-3 py-1 rounded-full font-bold">
-            Cosine Distance Qualified
-          </span>
-        </div>
-
-        <div className="grid md:grid-cols-12 gap-8 items-center">
-          {/* Left: Supplier Swap Flow (7 cols) */}
-          <div className="md:col-span-7 space-y-4">
-            <div className="flex flex-wrap items-center gap-4">
-              {/* Current */}
-              <div className="flex-1 min-w-[200px] p-4 rounded-xl bg-white/[0.03] border border-white/10">
-                <div className="text-[10px] font-mono text-white/40 uppercase tracking-wider mb-1">
-                  Current Vendor
-                </div>
-                <div className="font-bold text-white text-sm truncate">{supplier.supplier_name}</div>
-                <div className="text-xs text-red-400 font-mono mt-1">
-                  {(supplier.total_emissions / 1000).toFixed(1)} tCO₂e
-                </div>
+          {/* Card Header */}
+          <div className="flex flex-wrap items-center justify-between gap-4 mb-6 pb-4 border-b border-white/10">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-cyan-500/20 border border-cyan-400/40 flex items-center justify-center text-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.3)]">
+                <Leaf className="w-5 h-5" />
               </div>
-
-              <div className="p-2 rounded-full bg-white/5 border border-white/10 text-white/40">
-                <ArrowRight className="w-5 h-5 text-emerald-400" />
-              </div>
-
-              {/* Recommended Swap */}
-              <div className="flex-1 min-w-[200px] p-4 rounded-xl bg-emerald-950/20 border border-emerald-400/40">
-                <div className="text-[10px] font-mono text-emerald-400 uppercase tracking-wider mb-1">
-                  Recommended Alternate
-                </div>
-                <div className="font-bold text-white text-sm truncate">
-                  {recommendation?.to_supplier || "GreenFreight Transit Logistics"}
-                </div>
-                <div className="text-xs text-emerald-300 font-mono mt-1">
-                  {(
-                    (supplier.total_emissions *
-                      (1 - (recommendation?.emissions_reduction_pct || 28.6) / 100)) /
-                    1000
-                  ).toFixed(1)}{" "}
-                  tCO₂e (Projected)
-                </div>
+              <div>
+                <h2 className="text-xl font-bold font-heading text-white tracking-tight flex items-center gap-2">
+                  <span>Suggested Offsets</span>
+                  <span className="text-xs font-mono font-normal text-cyan-300 px-2 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/20">
+                    Residual Management
+                  </span>
+                </h2>
+                <p className="text-xs text-white/50 font-sans">
+                  For emissions that cannot be reduced through a supplier swap • High-durability carbon removal portfolio
+                </p>
               </div>
             </div>
 
-            {/* Similarity Score Progress Bar */}
-            <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5">
-              <div className="flex justify-between items-center text-xs font-mono mb-1.5">
-                <span className="text-white/60">Supplier Feature Similarity:</span>
-                <span className="text-cyan-400 font-bold">
-                  {((recommendation?.similarity_score || 0.89) * 100).toFixed(1)}% Match
-                </span>
-              </div>
-              <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-cyan-400 rounded-full transition-all duration-700"
-                  style={{ width: `${(recommendation?.similarity_score || 0.89) * 100}%` }}
-                />
-              </div>
-            </div>
-          </div>
+            <div className="flex items-center gap-2">
+              {recommendation && (
+                <div className="flex items-center rounded-xl bg-white/5 border border-white/10 p-1 text-xs font-heading">
+                  <button
+                    type="button"
+                    onClick={() => setActiveStrategyTab("swap")}
+                    className="px-3 py-1 rounded-lg text-white/60 hover:text-white transition-colors"
+                  >
+                    Supplier Swap
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveStrategyTab("offset")}
+                    className="px-3 py-1 rounded-lg bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold"
+                  >
+                    Suggested Offsets
+                  </button>
+                </div>
+              )}
 
-          {/* Right: Projected Decarbonization Impact (5 cols) */}
-          <div className="md:col-span-5 p-5 rounded-2xl bg-emerald-950/30 border border-emerald-500/30 text-center">
-            <div className="text-xs font-mono text-emerald-400 font-semibold uppercase tracking-wider mb-1">
-              Projected Carbon Reduction
-            </div>
-            <div className="text-4xl font-bold font-heading text-emerald-300 mb-2 flex items-center justify-center gap-1.5">
-              <TrendingDown className="w-8 h-8" />
-              <span>
-                {recommendation?.emissions_reduction_pct !== undefined
-                  ? Number(recommendation.emissions_reduction_pct).toFixed(1)
-                  : "28.6"}
-                %
+              <span className="text-xs font-mono text-cyan-300 bg-cyan-500/15 border border-cyan-500/30 px-3 py-1 rounded-full font-bold flex items-center gap-1.5">
+                <Coins className="w-3.5 h-3.5" />
+                <span>Scope 3 Balance Sheet</span>
               </span>
             </div>
-            <p className="text-xs text-white/70 font-sans mb-4">
-              Saving approximately{" "}
-              <strong className="text-white font-mono">
-                {(
-                  (supplier.total_emissions *
-                    ((recommendation?.emissions_reduction_pct || 28.6) / 100)) /
-                  1000
-                ).toFixed(1)}{" "}
-                tCO₂e
-              </strong>{" "}
-              per operational cycle by routing freight via electrified rail transit.
-            </p>
-
-            <Button
-              variant="primary"
-              className="w-full justify-center gap-2"
-              onClick={() => router.push(`/simulator?run_id=${runId}`)}
-            >
-              <span>Simulate Decarbonization Impact</span>
-              <ArrowRight className="w-4 h-4" />
-            </Button>
           </div>
-        </div>
-      </GlassCard>
+
+          <div className="grid md:grid-cols-12 gap-8 items-center">
+            {/* Left: Unabated Footprint Context (7 cols) */}
+            <div className="md:col-span-7 space-y-4">
+              <div className="p-5 rounded-2xl bg-cyan-950/20 border border-cyan-500/30 space-y-3">
+                <div className="flex items-center justify-between text-xs font-mono text-cyan-400 font-bold uppercase tracking-wider">
+                  <span>Unabated Emissions Analysis</span>
+                  <span className="text-white/40">No Direct Swap Match</span>
+                </div>
+                <p className="text-xs text-white/80 leading-relaxed font-sans">
+                  No verified lower-carbon substitute for <strong className="text-white">{supplier.supplier_name}</strong> exists in the audited dataset matching this material tier (<span className="text-cyan-300 font-mono">{supplier.material_type}</span>) and logistics profile. Because direct substitution is unavailable, the remaining footprint must be addressed through high-integrity carbon removal credits.
+                </p>
+                <div className="grid grid-cols-2 gap-3 pt-2">
+                  <div className="p-3 rounded-xl bg-black/40 border border-white/10">
+                    <div className="text-[10px] text-white/40 font-mono uppercase">Vendor Footprint</div>
+                    <div className="text-sm font-bold text-white font-mono">{residualTons} tCO₂e</div>
+                  </div>
+                  <div className="p-3 rounded-xl bg-black/40 border border-white/10">
+                    <div className="text-[10px] text-white/40 font-mono uppercase">Removal Standard</div>
+                    <div className="text-sm font-bold text-emerald-400 font-mono">Gold Standard / Verra</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Benchmark Reference Rate Citation */}
+              <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 text-[11px] text-white/50 leading-relaxed">
+                <div className="flex items-center gap-1.5 text-white/80 font-semibold mb-1">
+                  <Info className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Public Reference Rate Citation</span>
+                </div>
+                Estimated using a public reference benchmark rate (~$15–$20/tCO₂e) based on blended voluntary carbon credit pricing (high-durability afforestation, biochar, and technological removals). <strong className="text-white/70">Note:</strong> This is cited as an illustrative estimate, not a live spot market price.
+              </div>
+            </div>
+
+            {/* Right: Prominent Glass Card Metric Callout (5 cols) */}
+            <div className="md:col-span-5 p-6 rounded-2xl bg-gradient-to-br from-cyan-950/40 via-emerald-950/20 to-black/70 border border-cyan-400/40 text-center shadow-2xl relative">
+              <div className="text-xs font-mono text-cyan-300 font-semibold uppercase tracking-wider mb-3">
+                Suggested Offset Calculation
+              </div>
+
+              {/* User requested primary callout display */}
+              <div className="p-4 rounded-xl bg-black/50 border border-cyan-500/30 backdrop-blur-xl mb-4">
+                <div className="text-lg sm:text-xl font-bold font-heading text-white tracking-tight">
+                  Residual: <span className="text-cyan-400 font-mono">{residualTons} tCO2e</span>
+                </div>
+                <div className="text-base sm:text-lg font-bold font-heading text-emerald-400 mt-1">
+                  Est. offset cost: <span className="font-mono">${offsetCostMin.toLocaleString()}-{offsetCostMax.toLocaleString()}/year</span>
+                </div>
+              </div>
+
+              <div className="space-y-2 mb-5 text-xs font-mono">
+                <div className="flex justify-between text-white/60">
+                  <span>Residual Volume:</span>
+                  <span className="text-white font-bold">{residualTons} tCO₂e</span>
+                </div>
+                <div className="flex justify-between text-white/60">
+                  <span>Reference Benchmark Rate:</span>
+                  <span className="text-cyan-300 font-bold">~$15–20 / tCO₂e</span>
+                </div>
+                <div className="flex justify-between text-white/60 pt-1 border-t border-white/10">
+                  <span>Annual Offset Commitment:</span>
+                  <span className="text-emerald-400 font-bold">${offsetCostMin.toLocaleString()} – ${offsetCostMax.toLocaleString()} USD</span>
+                </div>
+              </div>
+
+              <Button
+                variant="primary"
+                className="w-full justify-center gap-2 text-xs"
+                onClick={() => router.push(`/simulator?run_id=${runId}`)}
+              >
+                <span>Add to Decarbonization Roadmap</span>
+                <ArrowRight className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        </GlassCard>
+      ) : (
+        /* CARD 3: RECOMMENDED ALTERNATIVE SUPPLIER SWAP CARD */
+        <GlassCard className="p-6 sm:p-8 border-emerald-500/40 shadow-[0_0_35px_rgba(16,185,129,0.12)] relative overflow-hidden bg-[#0A0E14]/80">
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-400 via-cyan-400 to-emerald-400" />
+
+          <div className="flex flex-wrap items-center justify-between gap-4 mb-6 pb-4 border-b border-white/10">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.3)]">
+                <CheckCircle2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold font-heading text-white tracking-tight">
+                  Recommended Green Supplier Alternative
+                </h2>
+                <p className="text-xs text-white/50 font-sans">
+                  Algorithmic substitution based on multi-dimensional cosine similarity across materials & logistics
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <div className="flex items-center rounded-xl bg-white/5 border border-white/10 p-1 text-xs font-heading">
+                <button
+                  type="button"
+                  onClick={() => setActiveStrategyTab("swap")}
+                  className="px-3 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 font-bold"
+                >
+                  Supplier Swap
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveStrategyTab("offset")}
+                  className="px-3 py-1 rounded-lg text-white/60 hover:text-white transition-colors"
+                >
+                  Suggested Offsets
+                </button>
+              </div>
+
+              <span className="text-xs font-mono text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-3 py-1 rounded-full font-bold">
+                Cosine Qualified
+              </span>
+            </div>
+          </div>
+
+          <div className="grid md:grid-cols-12 gap-8 items-center">
+            {/* Left: Supplier Swap Flow (7 cols) */}
+            <div className="md:col-span-7 space-y-4">
+              <div className="flex flex-wrap items-center gap-4">
+                {/* Current */}
+                <div className="flex-1 min-w-[200px] p-4 rounded-xl bg-white/[0.03] border border-white/10">
+                  <div className="text-[10px] font-mono text-white/40 uppercase tracking-wider mb-1">
+                    Current Vendor
+                  </div>
+                  <div className="font-bold text-white text-sm truncate">{supplier.supplier_name}</div>
+                  <div className="text-xs text-red-400 font-mono mt-1">
+                    {(supplier.total_emissions / 1000).toFixed(1)} tCO₂e
+                  </div>
+                </div>
+
+                <div className="p-2 rounded-full bg-white/5 border border-white/10 text-white/40">
+                  <ArrowRight className="w-5 h-5 text-emerald-400" />
+                </div>
+
+                {/* Recommended Swap */}
+                <div className="flex-1 min-w-[200px] p-4 rounded-xl bg-emerald-950/20 border border-emerald-400/40">
+                  <div className="text-[10px] font-mono text-emerald-400 uppercase tracking-wider mb-1">
+                    Recommended Alternate
+                  </div>
+                  <div className="font-bold text-white text-sm truncate">
+                    {recommendation?.to_supplier || "GreenFreight Transit Logistics"}
+                  </div>
+                  <div className="text-xs text-emerald-300 font-mono mt-1">
+                    {postSwapResidualTons} tCO₂e (Projected)
+                  </div>
+                </div>
+              </div>
+
+              {/* Similarity Score Progress Bar */}
+              <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5">
+                <div className="flex justify-between items-center text-xs font-mono mb-1.5">
+                  <span className="text-white/60">Supplier Feature Similarity:</span>
+                  <span className="text-cyan-400 font-bold">
+                    {((recommendation?.similarity_score || 0.89) * 100).toFixed(1)}% Match
+                  </span>
+                </div>
+                <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-cyan-400 rounded-full transition-all duration-700"
+                    style={{ width: `${(recommendation?.similarity_score || 0.89) * 100}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Suggested Offsets for post-swap residual */}
+              <div className="p-3.5 rounded-xl bg-cyan-950/20 border border-cyan-500/20 flex flex-wrap items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-2 text-white/80">
+                  <Leaf className="w-4 h-4 text-cyan-400" />
+                  <span>Residual: <strong className="text-cyan-300 font-mono">{postSwapResidualTons} tCO2e</strong></span>
+                </div>
+                <div className="text-white/70 font-mono">
+                  Est. offset cost: <span className="text-emerald-400 font-bold">${postSwapOffsetCostMin}-${postSwapOffsetCostMax}/year</span>
+                  <span className="text-white/40 text-[10px] ml-1.5">(~$15-20/tCO₂e illustrative estimate)</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Right: Projected Decarbonization Impact (5 cols) */}
+            <div className="md:col-span-5 p-5 rounded-2xl bg-emerald-950/30 border border-emerald-500/30 text-center">
+              <div className="text-xs font-mono text-emerald-400 font-semibold uppercase tracking-wider mb-1">
+                Projected Carbon Reduction
+              </div>
+              <div className="text-4xl font-bold font-heading text-emerald-300 mb-2 flex items-center justify-center gap-1.5">
+                <TrendingDown className="w-8 h-8" />
+                <span>
+                  {recommendation?.emissions_reduction_pct !== undefined
+                    ? Number(recommendation.emissions_reduction_pct).toFixed(1)
+                    : "28.6"}
+                  %
+                </span>
+              </div>
+              <p className="text-xs text-white/70 font-sans mb-4">
+                Saving approximately{" "}
+                <strong className="text-white font-mono">
+                  {(
+                    (supplier.total_emissions *
+                      ((recommendation?.emissions_reduction_pct || 28.6) / 100)) /
+                    1000
+                  ).toFixed(1)}{" "}
+                  tCO₂e
+                </strong>{" "}
+                per operational cycle by routing freight via electrified rail transit.
+              </p>
+
+              <Button
+                variant="primary"
+                className="w-full justify-center gap-2"
+                onClick={() => router.push(`/simulator?run_id=${runId}`)}
+              >
+                <span>Simulate Decarbonization Impact</span>
+                <ArrowRight className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        </GlassCard>
+      )}
     </div>
   );
 }
