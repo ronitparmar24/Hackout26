@@ -8,8 +8,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   getRun,
   uploadCSV,
+  getEcoAura,
   type RunResponse,
   type Supplier,
+  type EcoAuraData,
   filterNLP,
 } from "@/lib/api";
 import GlassCard from "@/components/GlassCard";
@@ -19,9 +21,13 @@ import SkeletonShimmer from "@/components/SkeletonShimmer";
 import Button from "@/components/Button";
 import AIChatWidget from "@/components/AIChatWidget";
 import AIExecutiveSummary from "@/components/AIExecutiveSummary";
+import EcoAuraCard from "@/components/EcoAuraCard";
+import ShareableFlexCard from "@/components/ShareableFlexCard";
+import SupplierMatchmakerModal, { type MatchmakerRecommendation } from "@/components/SupplierMatchmakerModal";
 import ForecastChart from "@/components/ForecastChart";
 import RecommendationPanel from "@/components/RecommendationPanel";
 import ExportButtons from "@/components/ExportButtons";
+import ProcurementOutreachModal from "@/components/ProcurementOutreachModal";
 
 const SupplierMapView = dynamic(() => import("@/components/SupplierMapView"), {
   ssr: false,
@@ -67,6 +73,7 @@ import {
   Zap,
   RotateCcw,
   X,
+  Mail,
 } from "lucide-react";
 
 type TabMode = "table" | "chart" | "tree" | "map";
@@ -136,6 +143,13 @@ export default function RedesignedDashboardPage() {
     "Tier 3": true,
   });
 
+  // Eco-Aura, Matchmaker & Social Flex states
+  const [auraData, setAuraData] = useState<EcoAuraData | null>(null);
+  const [auraLoading, setAuraLoading] = useState(true);
+  const [showFlexModal, setShowFlexModal] = useState(false);
+  const [selectedMatchmakerRec, setSelectedMatchmakerRec] = useState<MatchmakerRecommendation | null>(null);
+  const [selectedOutreachSupplier, setSelectedOutreachSupplier] = useState<Supplier | null>(null);
+
   useEffect(() => {
     if (!runId) return;
 
@@ -157,6 +171,16 @@ export default function RedesignedDashboardPage() {
         }
       }
     })();
+
+    // Fetch Eco-Aura & CBAM ratings concurrently
+    getEcoAura(runId)
+      .then((res) => {
+        if (isMounted) setAuraData(res);
+      })
+      .catch((e) => console.warn("Failed to load Eco-Aura", e))
+      .finally(() => {
+        if (isMounted) setAuraLoading(false);
+      });
 
     return () => {
       isMounted = false;
@@ -362,9 +386,18 @@ export default function RedesignedDashboardPage() {
         <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap flex-shrink-0">
           <button
             type="button"
+            onClick={() => setShowFlexModal(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-xs font-mono font-medium transition-all shadow-sm hover:scale-105 whitespace-nowrap cursor-pointer"
+            title="Generate shareable verified ESG badge"
+          >
+            <span>✨</span>
+            <span>Share ESG Flex</span>
+          </button>
+          <button
+            type="button"
             onClick={handleResetDemo}
             disabled={isResettingDemo}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-400/30 text-xs font-mono font-medium transition-all shadow-sm hover:scale-105 whitespace-nowrap"
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-400/30 text-xs font-mono font-medium transition-all shadow-sm hover:scale-105 whitespace-nowrap cursor-pointer"
             title="Re-run live demo pipeline from scratch"
           >
             <RotateCcw className={`w-3.5 h-3.5 ${isResettingDemo ? "animate-spin" : ""}`} />
@@ -374,6 +407,15 @@ export default function RedesignedDashboardPage() {
         </div>
       </div>
 
+      {/* Gamified Eco-Aura & CBAM Risk Rating Strip */}
+      <EcoAuraCard
+        data={auraData}
+        loading={auraLoading}
+        onOpenRoast={() => {
+          window.dispatchEvent(new CustomEvent("open-carbon-roast"));
+        }}
+        onOpenShareFlex={() => setShowFlexModal(true)}
+      />
 
       {/* AI Executive Summary Widget */}
       <div className="mb-8">
@@ -872,6 +914,17 @@ export default function RedesignedDashboardPage() {
                                 : "Standard risk profile.")}
                           </span>
                           <div className="flex items-center gap-2 flex-shrink-0">
+                            {s.is_anomaly && (
+                              <button
+                                type="button"
+                                onClick={() => setSelectedOutreachSupplier(s)}
+                                className="text-cyan-400 hover:text-cyan-300 font-semibold text-[10px] whitespace-nowrap flex items-center gap-1 bg-cyan-500/10 px-2 py-0.5 rounded-lg border border-cyan-500/20"
+                                title="Draft AI Decarbonization Mandate"
+                              >
+                                <Mail className="w-3 h-3" />
+                                <span>Draft Mandate</span>
+                              </button>
+                            )}
                             <button
                               type="button"
                               onClick={() => {
@@ -1000,6 +1053,20 @@ export default function RedesignedDashboardPage() {
                                     {s.supplier_name}
                                   </span>
                                 </Link>
+                                {s.is_anomaly && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      setSelectedOutreachSupplier(s);
+                                    }}
+                                    title="Draft AI Decarbonization Mandate"
+                                    className="p-1 rounded-lg text-white/30 hover:text-cyan-300 hover:bg-cyan-500/20 transition-all flex-shrink-0 group/draftbtn"
+                                  >
+                                    <Mail className="w-3.5 h-3.5 group-hover/draftbtn:scale-110 transition-transform text-cyan-400" />
+                                  </button>
+                                )}
                                 <button
                                   type="button"
                                   onClick={(e) => {
@@ -1392,11 +1459,46 @@ export default function RedesignedDashboardPage() {
           <ForecastChart runId={runId} />
         </GlassCard>
 
-        <RecommendationPanel suppliers={filteredSuppliers} />
+        <RecommendationPanel
+          suppliers={filteredSuppliers}
+          onSelectRecommendation={(rec) => setSelectedMatchmakerRec(rec)}
+        />
       </div>
 
       {/* Floating "Ask Your Data" AI Copilot Button & Panel */}
       <AIChatWidget runId={runId} />
+
+      {/* Green Supplier Matchmaker Drawer / Modal */}
+      {selectedMatchmakerRec && (
+        <SupplierMatchmakerModal
+          runId={runId}
+          recommendation={selectedMatchmakerRec}
+          onClose={() => setSelectedMatchmakerRec(null)}
+          onSwitchApplied={(rec) => {
+            // Re-fetch data and aura metrics to reflect immediate update
+            getRun(runId).then((res) => setData(res));
+            getEcoAura(runId).then((res) => setAuraData(res));
+          }}
+        />
+      )}
+
+      {/* Shareable ESG Flex Social Badge Modal */}
+      {showFlexModal && (
+        <ShareableFlexCard
+          data={auraData}
+          companyName="Enterprise Scope 3 Ledger"
+          onClose={() => setShowFlexModal(false)}
+        />
+      )}
+
+      {/* AI Procurement Outreach Modal */}
+      {selectedOutreachSupplier && (
+        <ProcurementOutreachModal
+          supplier={selectedOutreachSupplier}
+          onClose={() => setSelectedOutreachSupplier(null)}
+        />
+      )}
     </div>
   );
 }
+

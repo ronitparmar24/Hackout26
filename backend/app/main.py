@@ -44,11 +44,29 @@ def health():
 
 
 from app.core.auth import get_current_user, AuthenticatedUser, DEMO_GUEST_USER_ID
+import time
+
+# Fast In-Memory TTL Cache (60s TTL) for millisecond responses
+_RUNS_CACHE = {}  # key: user_id -> {"data": [...], "ts": float}
+_RUN_DETAIL_CACHE = {}  # key: run_id -> {"data": {...}, "ts": float}
+CACHE_TTL = 60.0  # seconds
+
+
+def invalidate_run_caches():
+    """Clear memory caches when new data is uploaded."""
+    _RUNS_CACHE.clear()
+    _RUN_DETAIL_CACHE.clear()
 
 
 @app.get("/api/runs")
 def list_runs(current_user: AuthenticatedUser = Depends(get_current_user)):
-    """List runs isolated by requesting user, with support for guest demo users."""
+    """List runs isolated by requesting user, with in-memory caching for instant page navigation."""
+    cache_key = f"guest:{DEMO_GUEST_USER_ID}" if current_user.is_guest else f"user:{current_user.user_id}"
+    now = time.time()
+    
+    if cache_key in _RUNS_CACHE and (now - _RUNS_CACHE[cache_key]["ts"]) < CACHE_TTL:
+        return _RUNS_CACHE[cache_key]["data"]
+
     if current_user.is_guest:
         # Guest demo user sees demo/shared runs
         query = {"$or": [{"user_id": DEMO_GUEST_USER_ID}, {"user_id": None}, {"user_id": {"$exists": False}}]}
@@ -61,6 +79,8 @@ def list_runs(current_user: AuthenticatedUser = Depends(get_current_user)):
         run_identifier = r.get("run_id") or r.get("id") or ""
         r["id"] = run_identifier
         r["run_id"] = run_identifier
+
+    _RUNS_CACHE[cache_key] = {"data": runs, "ts": now}
     return runs
 
 
@@ -72,6 +92,16 @@ def get_history(current_user: AuthenticatedUser = Depends(get_current_user)):
 
 @app.get("/api/runs/{run_id}")
 def get_run(run_id: str, current_user: AuthenticatedUser = Depends(get_current_user)):
+    """Fetch run details with in-memory caching to eliminate 2+ second database roundtrips."""
+    now = time.time()
+    if run_id in _RUN_DETAIL_CACHE and (now - _RUN_DETAIL_CACHE[run_id]["ts"]) < CACHE_TTL:
+        cached_run = _RUN_DETAIL_CACHE[run_id]["data"]
+        # Verify ownership
+        run_owner = cached_run.get("user_id")
+        if run_owner and run_owner not in (current_user.user_id, DEMO_GUEST_USER_ID) and not current_user.is_guest:
+            raise HTTPException(403, "Access denied: this run belongs to another organization.")
+        return cached_run
+
     run = db.runs.find_one({"$or": [{"id": run_id}, {"run_id": run_id}]}, {"_id": 0})
     if not run:
         raise HTTPException(404, "Run not found")
@@ -92,7 +122,7 @@ def get_run(run_id: str, current_user: AuthenticatedUser = Depends(get_current_u
         if "to_supplier" not in r:
             r["to_supplier"] = sup_map.get(r.get("recommended_supplier_id"), "Unknown")
 
-    return {
+    run_detail = {
         "id": actual_run_id,
         "run_id": actual_run_id,
         "user_id": run_owner,
@@ -105,3 +135,8 @@ def get_run(run_id: str, current_user: AuthenticatedUser = Depends(get_current_u
         "suppliers": suppliers,
         "recommendations": recs,
     }
+
+    _RUN_DETAIL_CACHE[run_id] = {"data": run_detail, "ts": now}
+    _RUN_DETAIL_CACHE[actual_run_id] = {"data": run_detail, "ts": now}
+    return run_detail
+

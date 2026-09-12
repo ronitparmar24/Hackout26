@@ -4,6 +4,7 @@ import React, { useEffect, useState, useMemo, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { getRun, listRuns, type RunResponse, type Supplier } from "@/lib/api";
 import GlassCard from "@/components/GlassCard";
+import confetti from "canvas-confetti";
 import {
   Sliders,
   Sparkles,
@@ -15,6 +16,8 @@ import {
   CheckCircle2,
   ShieldAlert,
   ArrowRight,
+  Zap,
+  Flame,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -174,7 +177,52 @@ function SimulatorContent() {
     },
   ];
 
+  const [activePreset, setActivePreset] = useState<string | null>(null);
+
+  const triggerCelebration = () => {
+    try {
+      confetti({
+        particleCount: 75,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ["#10B981", "#06B6D4", "#F59E0B", "#8B5CF6", "#EC4899"],
+      });
+    } catch (e) {
+      // ignore
+    }
+  };
+
+  const applyPreset = (presetName: string) => {
+    setActivePreset(presetName);
+    if (presetName === "netzero") {
+      setAirToRailShift(90);
+      setRenewableEnergyPct(85);
+      setRecycledMaterialPct(75);
+      setDecoupleAnomalies(true);
+      triggerCelebration();
+    } else if (presetName === "freight") {
+      setAirToRailShift(100);
+      setRenewableEnergyPct(45);
+      setRecycledMaterialPct(35);
+      setDecoupleAnomalies(true);
+      triggerCelebration();
+    } else if (presetName === "outliers") {
+      setAirToRailShift(50);
+      setRenewableEnergyPct(30);
+      setRecycledMaterialPct(25);
+      setDecoupleAnomalies(true);
+      triggerCelebration();
+    } else if (presetName === "circular") {
+      setAirToRailShift(40);
+      setRenewableEnergyPct(65);
+      setRecycledMaterialPct(90);
+      setDecoupleAnomalies(false);
+      triggerCelebration();
+    }
+  };
+
   const resetDefaults = () => {
+    setActivePreset(null);
     setAirToRailShift(50);
     setRenewableEnergyPct(40);
     setRecycledMaterialPct(30);
@@ -208,6 +256,74 @@ function SimulatorContent() {
           <RotateCcw size={14} />
           Reset Baseline
         </button>
+      </div>
+
+      {/* 1-Click Decarbonization Speedrun Strip */}
+      <div className="mb-6 p-4 rounded-2xl bg-slate-900/70 border border-slate-800/80 backdrop-blur-xl shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fade-in">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+            <Zap className="w-4 h-4" />
+          </div>
+          <div>
+            <div className="text-xs font-bold text-white flex items-center gap-1.5">
+              <span>1-Click Decarbonization Speedruns</span>
+              <span className="text-[10px] text-amber-400 font-mono font-semibold">GEN-Z PRESETS 🔥</span>
+            </div>
+            <div className="text-[11px] text-slate-400">
+              Select an aggressive scenario preset to simulate immediate carbon collapse
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => applyPreset("netzero")}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+              activePreset === "netzero"
+                ? "bg-emerald-500 text-black shadow-[0_0_15px_rgba(16,185,129,0.5)] scale-105"
+                : "bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/20"
+            }`}
+          >
+            <span>🚀</span>
+            <span>Net-Zero Speedrun</span>
+          </button>
+
+          <button
+            onClick={() => applyPreset("freight")}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+              activePreset === "freight"
+                ? "bg-cyan-500 text-black shadow-[0_0_15px_rgba(6,182,212,0.5)] scale-105"
+                : "bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 hover:bg-cyan-500/20"
+            }`}
+          >
+            <span>🚆</span>
+            <span>Ground the Freight</span>
+          </button>
+
+          <button
+            onClick={() => applyPreset("outliers")}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+              activePreset === "outliers"
+                ? "bg-amber-500 text-black shadow-[0_0_15px_rgba(245,158,11,0.5)] scale-105"
+                : "bg-amber-500/10 text-amber-300 border border-amber-500/30 hover:bg-amber-500/20"
+            }`}
+          >
+            <span>✂️</span>
+            <span>Outlier Purge</span>
+          </button>
+
+          <button
+            onClick={() => applyPreset("circular")}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+              activePreset === "circular"
+                ? "bg-purple-500 text-white shadow-[0_0_15px_rgba(168,85,247,0.5)] scale-105"
+                : "bg-purple-500/10 text-purple-300 border border-purple-500/30 hover:bg-purple-500/20"
+            }`}
+          >
+            <span>🌿</span>
+            <span>Max Circularity</span>
+          </button>
+        </div>
       </div>
 
       {/* KPI Abatement Summary */}

@@ -1,7 +1,7 @@
 import axios from "axios";
 import { getAuthToken } from "./supabase";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
 const api = axios.create({
   baseURL: API_BASE,
@@ -16,6 +16,20 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
+
+/* ---------- In-Memory Caches & Deduplication (Sub-50ms Navigation) ---------- */
+let runsCache: { data: UploadResponse[]; timestamp: number } | null = null;
+let runsInFlight: Promise<UploadResponse[]> | null = null;
+const runDetailCache = new Map<string, { data: RunResponse; timestamp: number }>();
+const runDetailInFlight = new Map<string, Promise<RunResponse>>();
+const CLIENT_CACHE_TTL = 30000; // 30 seconds
+
+export function clearApiCache() {
+  runsCache = null;
+  runsInFlight = null;
+  runDetailCache.clear();
+  runDetailInFlight.clear();
+}
 
 /* ---------- Types ---------- */
 export interface Supplier {
@@ -74,6 +88,7 @@ export interface Settings {
 
 /* ---------- API Calls ---------- */
 export async function uploadCSV(file: File): Promise<UploadResponse> {
+  clearApiCache();
   const form = new FormData();
   form.append("file", file);
   const { data } = await api.post<UploadResponse>("/api/upload", form, {
@@ -83,21 +98,67 @@ export async function uploadCSV(file: File): Promise<UploadResponse> {
 }
 
 export async function getRun(runId: string): Promise<RunResponse> {
-  const { data } = await api.get<RunResponse>(`/api/runs/${runId}`);
-  return data;
+  if (!runId) throw new Error("runId required");
+  const now = Date.now();
+
+  // 1. Check in-memory cache
+  const cached = runDetailCache.get(runId);
+  if (cached && now - cached.timestamp < CLIENT_CACHE_TTL) {
+    return cached.data;
+  }
+
+  // 2. Return in-flight promise if already fetching
+  if (runDetailInFlight.has(runId)) {
+    return runDetailInFlight.get(runId)!;
+  }
+
+  const promise = (async () => {
+    try {
+      const { data } = await api.get<RunResponse>(`/api/runs/${runId}`);
+      runDetailCache.set(runId, { data, timestamp: Date.now() });
+      return data;
+    } finally {
+      runDetailInFlight.delete(runId);
+    }
+  })();
+
+  runDetailInFlight.set(runId, promise);
+  return promise;
 }
 
 export async function listRuns(): Promise<UploadResponse[]> {
-  const { data } = await api.get<any[]>("/api/runs");
-  if (!Array.isArray(data)) return [];
-  return data.map((r) => {
-    const runIdentifier = r.run_id || r.id || "";
-    return {
-      ...r,
-      id: runIdentifier,
-      run_id: runIdentifier,
-    };
-  });
+  const now = Date.now();
+
+  // 1. Check in-memory cache
+  if (runsCache && now - runsCache.timestamp < CLIENT_CACHE_TTL) {
+    return runsCache.data;
+  }
+
+  // 2. Return in-flight promise if already fetching
+  if (runsInFlight) {
+    return runsInFlight;
+  }
+
+  runsInFlight = (async () => {
+    try {
+      const { data } = await api.get<any[]>("/api/runs");
+      if (!Array.isArray(data)) return [];
+      const normalized = data.map((r) => {
+        const runIdentifier = r.run_id || r.id || "";
+        return {
+          ...r,
+          id: runIdentifier,
+          run_id: runIdentifier,
+        };
+      });
+      runsCache = { data: normalized, timestamp: Date.now() };
+      return normalized;
+    } finally {
+      runsInFlight = null;
+    }
+  })();
+
+  return runsInFlight;
 }
 
 export async function getLatestRun(): Promise<RunResponse | null> {
@@ -115,6 +176,7 @@ export async function getLatestRun(): Promise<RunResponse | null> {
   return null;
 }
 
+
 export function getExportCSVUrl(runId: string): string {
   const token = getAuthToken();
   const tokenParam = token ? `?token=${encodeURIComponent(token)}` : "";
@@ -127,8 +189,42 @@ export function getExportPDFUrl(runId: string): string {
   return `${API_BASE}/api/export/pdf/${runId}${tokenParam}`;
 }
 
-export async function chatWithData(runId: string, message: string) {
-  const { data } = await api.post(`/api/chat/${runId}`, { question: message, message });
+export interface EcoAuraBadge {
+  id: string;
+  name: string;
+  icon: string;
+  desc: string;
+  unlocked: boolean;
+}
+
+export interface EcoAuraData {
+  run_id: string;
+  aura_score: number;
+  aura_grade: string;
+  aura_title: string;
+  aura_color: string;
+  cbam_liability_usd: number;
+  potential_cbam_savings_usd: number;
+  vibe_check: string;
+  concentration_pct: number;
+  anomaly_count: number;
+  total_suppliers: number;
+  top_culprit: {
+    name: string;
+    emissions_kg: number;
+    pct: number;
+    tier: string;
+  };
+  badges: EcoAuraBadge[];
+}
+
+export async function chatWithData(runId: string, message: string, persona: "auditor" | "roast" = "auditor") {
+  const { data } = await api.post(`/api/chat/${runId}`, { question: message, message, persona });
+  return data;
+}
+
+export async function getEcoAura(runId: string): Promise<EcoAuraData> {
+  const { data } = await api.get<EcoAuraData>(`/api/aura/${runId}`);
   return data;
 }
 

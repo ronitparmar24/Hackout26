@@ -101,8 +101,10 @@ export default function Sidebar() {
               {group.items.map((item) => {
                 const Icon = item.icon;
                 const targetHref =
-                  item.href === "/dashboard" && latestRunId
-                    ? `/dashboard/${latestRunId}`
+                  latestRunId && item.href !== "/" && item.href !== "/history" && item.href !== "/upload"
+                    ? item.href === "/dashboard"
+                      ? `/dashboard/${latestRunId}`
+                      : `${item.href}?run_id=${latestRunId}`
                     : item.href;
 
                 const isActive =
