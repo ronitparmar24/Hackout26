@@ -2,8 +2,6 @@ import io
 import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
-from sqlalchemy.orm import Session
-from sqlalchemy import text
 from app.core.database import get_db
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
@@ -15,26 +13,27 @@ router = APIRouter()
 
 
 @router.get("/api/export/csv/{run_id}")
-def export_csv(run_id: str, db: Session = Depends(get_db)):
+def export_csv(run_id: str, db=Depends(get_db)):
     # Verify run exists
-    run = db.execute(text("SELECT * FROM runs WHERE id = :id"), {"id": run_id}).fetchone()
+    run = db.runs.find_one({"id": run_id})
     if not run:
         raise HTTPException(404, "Run not found")
 
-    rows = db.execute(text(
-        "SELECT supplier_name, tier, region, energy_kwh, energy_kwh_estimated, "
-        "transport_km, transport_km_estimated, transport_mode, material_type, material_qty, "
-        "energy_emissions, transport_emissions, material_emissions, total_emissions, "
-        "is_anomaly, cluster_label "
-        "FROM suppliers WHERE run_id = :id ORDER BY total_emissions DESC"
-    ), {"id": run_id}).fetchall()
+    rows = list(db.suppliers.find({"run_id": run_id}, {"_id": 0}).sort("total_emissions", -1))
 
-    df = pd.DataFrame(rows, columns=[
+    cols = [
         "supplier_name", "tier", "region", "energy_kwh", "energy_kwh_estimated",
         "transport_km", "transport_km_estimated", "transport_mode", "material_type",
         "material_qty", "energy_emissions", "transport_emissions", "material_emissions",
         "total_emissions", "is_anomaly", "cluster_label"
-    ])
+    ]
+
+    df = pd.DataFrame(rows)
+    # Ensure all expected columns are present
+    for col in cols:
+        if col not in df.columns:
+            df[col] = None
+    df = df[cols]
 
     buf = io.StringIO()
     df.to_csv(buf, index=False)
@@ -48,34 +47,33 @@ def export_csv(run_id: str, db: Session = Depends(get_db)):
 
 
 @router.get("/api/export/pdf/{run_id}")
-def export_pdf(run_id: str, db: Session = Depends(get_db)):
-    run = db.execute(text("SELECT * FROM runs WHERE id = :id"), {"id": run_id}).fetchone()
+def export_pdf(run_id: str, db=Depends(get_db)):
+    run = db.runs.find_one({"id": run_id})
     if not run:
         raise HTTPException(404, "Run not found")
 
-    suppliers = db.execute(text(
-        "SELECT supplier_name, tier, total_emissions, is_anomaly, cluster_label "
-        "FROM suppliers WHERE run_id = :id ORDER BY total_emissions DESC"
-    ), {"id": run_id}).fetchall()
+    suppliers = list(db.suppliers.find({"run_id": run_id}, {"_id": 0}).sort("total_emissions", -1))
+    anomalies = [s for s in suppliers if s.get("is_anomaly")]
 
-    anomalies = [s for s in suppliers if s.is_anomaly]
+    recs = list(db.recommendations.find({"run_id": run_id}, {"_id": 0}).sort("emissions_reduction_pct", -1))
+    sup_map = {s["id"]: s["supplier_name"] for s in suppliers}
+    for r in recs:
+        if "from_supplier" not in r:
+            r["from_supplier"] = sup_map.get(r.get("supplier_id"), "Unknown")
+        if "to_supplier" not in r:
+            r["to_supplier"] = sup_map.get(r.get("recommended_supplier_id"), "Unknown")
 
-    recs = db.execute(text("""
-        SELECT s1.supplier_name as from_supplier, s2.supplier_name as to_supplier,
-               r.similarity_score, r.emissions_reduction_pct
-        FROM recommendations r
-        JOIN suppliers s1 ON r.supplier_id = s1.id
-        JOIN suppliers s2 ON r.recommended_supplier_id = s2.id
-        WHERE s1.run_id = :id
-        ORDER BY r.emissions_reduction_pct DESC
-    """), {"id": run_id}).fetchall()
-
-    # Cluster summary
-    cluster_data = db.execute(text(
-        "SELECT cluster_label, count(*), round(avg(total_emissions), 2) "
-        "FROM suppliers WHERE run_id = :id GROUP BY cluster_label ORDER BY cluster_label"
-    ), {"id": run_id}).fetchall()
-
+    # Cluster summary using MongoDB aggregation
+    pipeline = [
+        {"$match": {"run_id": run_id}},
+        {"$group": {
+            "_id": "$cluster_label",
+            "count": {"$sum": 1},
+            "avg_emissions": {"$avg": "$total_emissions"}
+        }},
+        {"$sort": {"_id": 1}}
+    ]
+    cluster_data = [(doc["_id"], doc["count"], doc["avg_emissions"] or 0) for doc in db.suppliers.aggregate(pipeline)]
 
     # Build PDF
     buf = io.BytesIO()
@@ -87,16 +85,17 @@ def export_pdf(run_id: str, db: Session = Depends(get_db)):
     elements.append(Paragraph("Carbon-Aware Supply Chain Report", styles["Title"]))
     elements.append(Spacer(1, 10))
     elements.append(Paragraph(f"Run ID: {run_id}", styles["Normal"]))
-    elements.append(Paragraph(f"File: {run.filename}", styles["Normal"]))
-    elements.append(Paragraph(f"Total Suppliers: {run.total_suppliers}", styles["Normal"]))
-    elements.append(Paragraph(f"Total Emissions: {run.total_emissions:,.2f} kg CO2e", styles["Normal"]))
+    elements.append(Paragraph(f"File: {run.get('filename')}", styles["Normal"]))
+    elements.append(Paragraph(f"Total Suppliers: {run.get('total_suppliers')}", styles["Normal"]))
+    total_emissions_val = float(run.get("total_emissions") or 0)
+    elements.append(Paragraph(f"Total Emissions: {total_emissions_val:,.2f} kg CO2e", styles["Normal"]))
     elements.append(Spacer(1, 15))
 
     # Top 10 Emitters
     elements.append(Paragraph("Top 10 Emitters", styles["Heading2"]))
     top_data = [["Supplier", "Tier", "Emissions (kg CO2e)"]]
     for s in suppliers[:10]:
-        top_data.append([s.supplier_name, s.tier, f"{float(s.total_emissions):,.2f}"])
+        top_data.append([s.get("supplier_name", ""), s.get("tier", ""), f"{float(s.get('total_emissions', 0)):,.2f}"])
     t = Table(top_data, colWidths=[200, 60, 120])
     t.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#2d3748")),
@@ -113,7 +112,7 @@ def export_pdf(run_id: str, db: Session = Depends(get_db)):
     if anomalies:
         anom_data = [["Supplier", "Tier", "Emissions"]]
         for a in anomalies:
-            anom_data.append([a.supplier_name, a.tier, f"{float(a.total_emissions):,.2f}"])
+            anom_data.append([a.get("supplier_name", ""), a.get("tier", ""), f"{float(a.get('total_emissions', 0)):,.2f}"])
         t2 = Table(anom_data, colWidths=[200, 60, 120])
         t2.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#e53e3e")),
@@ -144,9 +143,12 @@ def export_pdf(run_id: str, db: Session = Depends(get_db)):
         elements.append(Paragraph("Recommendations", styles["Heading2"]))
         rec_data = [["From", "To", "Similarity", "Reduction %"]]
         for r in recs:
-            rec_data.append([r.from_supplier, r.to_supplier,
-                           f"{float(r.similarity_score):.4f}",
-                           f"{float(r.emissions_reduction_pct):.1f}%"])
+            rec_data.append([
+                r.get("from_supplier", ""),
+                r.get("to_supplier", ""),
+                f"{float(r.get('similarity_score', 0)):.4f}",
+                f"{float(r.get('emissions_reduction_pct', 0)):.1f}%"
+            ])
         t4 = Table(rec_data, colWidths=[130, 130, 70, 70])
         t4.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#38a169")),

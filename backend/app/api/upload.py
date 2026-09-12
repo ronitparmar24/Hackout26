@@ -1,9 +1,8 @@
 import uuid
+from datetime import datetime
 import pandas as pd
 from io import StringIO
 from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
-from sqlalchemy.orm import Session
-from sqlalchemy import text
 from app.core.database import get_db
 
 import sys, os
@@ -25,7 +24,7 @@ VALID_MATERIALS = {"Steel", "Plastic", "Aluminum", "Textile", "Electronics"}
 
 
 @router.post("/api/upload")
-def upload_csv(file: UploadFile = File(...), db: Session = Depends(get_db)):
+def upload_csv(file: UploadFile = File(...), db=Depends(get_db)):
     if not file.filename.endswith(".csv"):
         raise HTTPException(400, "Only CSV files accepted")
 
@@ -50,17 +49,22 @@ def upload_csv(file: UploadFile = File(...), db: Session = Depends(get_db)):
 
     # Create run record
     run_id = str(uuid.uuid4())
-    db.execute(text(
-        "INSERT INTO runs (id, filename, total_suppliers, status) VALUES (:id, :fn, :cnt, 'processing')"
-    ), {"id": run_id, "fn": file.filename, "cnt": len(df)})
-    db.commit()
+    db.runs.insert_one({
+        "id": run_id,
+        "filename": file.filename,
+        "total_suppliers": len(df),
+        "total_emissions": 0.0,
+        "status": "processing",
+        "created_at": datetime.utcnow().isoformat(),
+        "executive_summary": None,
+        "recommended_actions": None,
+    })
 
     # Process each row
     total_emissions_sum = 0
     suppliers = []
 
     for _, row in df.iterrows():
-
         energy = row["energy_kwh"] if pd.notna(row["energy_kwh"]) else None
         transport = row["transport_km"] if pd.notna(row["transport_km"]) else None
         
@@ -94,58 +98,53 @@ def upload_csv(file: UploadFile = File(...), db: Session = Depends(get_db)):
 
         sup_id = str(uuid.uuid4())
         suppliers.append({
-            "id": sup_id, "run_id": run_id,
-            "supplier_name": row["supplier_name"], "tier": row["tier"],
-            "region": row.get("region"), "energy_kwh": energy,
+            "id": sup_id,
+            "run_id": run_id,
+            "supplier_name": str(row["supplier_name"]),
+            "tier": str(row["tier"]),
+            "region": str(row.get("region")) if pd.notna(row.get("region")) else None,
+            "energy_kwh": energy,
             "energy_kwh_estimated": energy_est,
-            "transport_km": transport, "transport_km_estimated": transport_est,
-            "transport_mode": row["transport_mode"],
-            "material_type": row["material_type"],
+            "transport_km": transport,
+            "transport_km_estimated": transport_est,
+            "transport_mode": str(row["transport_mode"]),
+            "material_type": str(row["material_type"]),
             "material_qty": float(row["material_qty"]),
             "energy_emissions": round(e_em, 4),
             "transport_emissions": round(t_em, 4),
             "material_emissions": round(m_em, 4),
             "total_emissions": round(total, 4),
+            "risk_score": None,
+            "risk_justification": None,
+            "anomaly_reason": None,
         })
 
-    # Bulk insert suppliers
+    # Bulk insert suppliers with ML anomaly & cluster tags
     if suppliers:
-
         anomalies = detect_anomalies(suppliers)
         clusters = cluster_suppliers(suppliers)
         for i, sup in enumerate(suppliers):
-            sup["is_anomaly"] = anomalies[i]
-            sup["cluster_label"] = clusters[i]
+            sup["is_anomaly"] = bool(anomalies[i])
+            sup["cluster_label"] = int(clusters[i])
 
-        db.execute(text("""
-            INSERT INTO suppliers (id, run_id, supplier_name, tier, region,
-                energy_kwh, energy_kwh_estimated, transport_km, transport_km_estimated,
-                transport_mode, material_type, material_qty,
-                energy_emissions, transport_emissions, material_emissions, total_emissions,
-                is_anomaly, cluster_label)
-            VALUES (:id, :run_id, :supplier_name, :tier, :region,
-                :energy_kwh, :energy_kwh_estimated, :transport_km, :transport_km_estimated,
-                :transport_mode, :material_type, :material_qty,
-                :energy_emissions, :transport_emissions, :material_emissions, :total_emissions,
-                :is_anomaly, :cluster_label)
-        """), suppliers)
+        db.suppliers.insert_many(suppliers)
 
         # Generate recommendations
         recs = generate_recommendations(suppliers)
         if recs:
+            sup_map = {s["id"]: s["supplier_name"] for s in suppliers}
+            for r in recs:
+                r["id"] = str(uuid.uuid4())
+                r["run_id"] = run_id
+                r["from_supplier"] = sup_map.get(r["supplier_id"], "Unknown")
+                r["to_supplier"] = sup_map.get(r["recommended_supplier_id"], "Unknown")
+            db.recommendations.insert_many(recs)
 
-            db.execute(text("""
-                INSERT INTO recommendations (supplier_id, recommended_supplier_id,
-                    similarity_score, emissions_reduction_pct)
-                VALUES (:supplier_id, :recommended_supplier_id,
-                    :similarity_score, :emissions_reduction_pct)
-            """), recs)
-
-    # Update run
-    db.execute(text(
-        "UPDATE runs SET total_emissions = :te, status = 'done' WHERE id = :id"
-    ), {"te": round(total_emissions_sum, 4), "id": run_id})
-    db.commit()
+    # Update run record
+    db.runs.update_one(
+        {"id": run_id},
+        {"$set": {"total_emissions": round(total_emissions_sum, 4), "status": "done"}}
+    )
 
     return {
         "run_id": run_id,

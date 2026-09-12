@@ -10,3 +10,5 @@ python-dotenv
 faker
 numpy
 joblib
+pymongo
+dnspython

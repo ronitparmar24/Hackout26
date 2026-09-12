@@ -3,10 +3,9 @@ os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
 os.environ["OPENBLAS_NUM_THREADS"] = "1"
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import text
-from app.core.database import engine, init_db
+from app.core.database import db, init_db
 from app.api.upload import router as upload_router
 from app.api.export import router as export_router
 from app.api.ai import router as ai_router
@@ -37,45 +36,40 @@ def on_startup():
 
 @app.get("/health")
 def health():
-    with engine.connect() as conn:
-        conn.execute(text("SELECT 1"))
-    return {"status": "ok", "database": "connected"}
+    try:
+        db.command("ping")
+        return {"status": "ok", "database": "mongodb"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
 @app.get("/api/runs")
 def list_runs():
-    with engine.connect() as conn:
-        runs = conn.execute(text("SELECT * FROM runs ORDER BY created_at DESC")).fetchall()
-        return [dict(r._mapping) for r in runs]
+    runs = list(db.runs.find({}, {"_id": 0}).sort("created_at", -1))
+    return runs
 
 
 @app.get("/api/runs/{run_id}")
 def get_run(run_id: str):
-    from fastapi import HTTPException
-    with engine.connect() as conn:
-        run = conn.execute(text("SELECT * FROM runs WHERE id = :id"), {"id": run_id}).fetchone()
-        if not run:
-            raise HTTPException(404, "Run not found")
-        suppliers = conn.execute(text(
-            "SELECT * FROM suppliers WHERE run_id = :id ORDER BY total_emissions DESC"
-        ), {"id": run_id}).fetchall()
-        recs = conn.execute(text("""
-            SELECT s1.supplier_name as from_supplier, s2.supplier_name as to_supplier,
-                   r.similarity_score, r.emissions_reduction_pct
-            FROM recommendations r
-            JOIN suppliers s1 ON r.supplier_id = s1.id
-            JOIN suppliers s2 ON r.recommended_supplier_id = s2.id
-            WHERE s1.run_id = :id
-            ORDER BY r.emissions_reduction_pct DESC
-        """), {"id": run_id}).fetchall()
-        return {
-            "run_id": run_id,
-            "filename": run.filename,
-            "status": run.status,
-            "total_suppliers": run.total_suppliers,
-            "total_emissions": float(run.total_emissions) if run.total_emissions else 0,
-            "suppliers": [dict(s._mapping) for s in suppliers],
-            "recommendations": [dict(r._mapping) for r in recs],
-        }
+    run = db.runs.find_one({"id": run_id}, {"_id": 0})
+    if not run:
+        raise HTTPException(404, "Run not found")
+    suppliers = list(db.suppliers.find({"run_id": run_id}, {"_id": 0}).sort("total_emissions", -1))
+    recs = list(db.recommendations.find({"run_id": run_id}, {"_id": 0}).sort("emissions_reduction_pct", -1))
 
+    sup_map = {s["id"]: s["supplier_name"] for s in suppliers}
+    for r in recs:
+        if "from_supplier" not in r:
+            r["from_supplier"] = sup_map.get(r.get("supplier_id"), "Unknown")
+        if "to_supplier" not in r:
+            r["to_supplier"] = sup_map.get(r.get("recommended_supplier_id"), "Unknown")
 
+    return {
+        "run_id": run_id,
+        "filename": run.get("filename"),
+        "status": run.get("status"),
+        "total_suppliers": run.get("total_suppliers"),
+        "total_emissions": float(run.get("total_emissions") or 0),
+        "suppliers": suppliers,
+        "recommendations": recs,
+    }

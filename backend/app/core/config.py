@@ -2,9 +2,12 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Walk up from this file to find .env at project root
 _this_dir = Path(__file__).resolve().parent  # app/core/
-_project_root = _this_dir.parent.parent.parent  # Hackout26_Muggles/
+_backend_dir = _this_dir.parent.parent       # backend/
+_project_root = _backend_dir.parent          # Hackout26/
+
+load_dotenv(_backend_dir / ".env")
 load_dotenv(_project_root / ".env")
 
-DATABASE_URL = os.getenv("DATABASE_URL")
+MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
+MONGODB_DB_NAME = os.getenv("MONGODB_DB_NAME", "carbonsense")
